@@ -69,9 +69,12 @@ void applySettingsToDevice(HantekDsoControl *dsoControl, DsoSettingsScope *scope
         dsoControl->setRecordLength(scope->horizontal.recordLength);
     else {
         auto recLenVec = dsoControl->getAvailableRecordLengths();
-        ptrdiff_t index = std::distance(recLenVec.begin(),
-                                        std::find(recLenVec.begin(), recLenVec.end(), scope->horizontal.recordLength));
-        dsoControl->setRecordLength(index < 0 ? 1 : (unsigned)index);
+        auto found = std::find(recLenVec.begin(), recLenVec.end(), scope->horizontal.recordLength);
+        // Se o valor salvo não existe na lista (ex.: 0 na primeira execução), usa o índice 1
+        // (primeiro tamanho fixo; o índice 0 costuma ser o modo "Roll").
+        unsigned index = (found == recLenVec.end()) ? 1u : (unsigned)std::distance(recLenVec.begin(), found);
+        if (index >= recLenVec.size()) index = 0;
+        dsoControl->setRecordLength(index);
     }
     dsoControl->setTriggerMode(scope->trigger.mode);
     dsoControl->setPretriggerPosition(scope->trigger.position * scope->horizontal.timebase * DIVS_TIME);

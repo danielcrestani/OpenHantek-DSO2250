@@ -26,11 +26,11 @@ void HantekDsoControl::enableSampling(bool enabled) {
     sampling = enabled;
 
     // Emit signals for initial settings
-    //    emit availableRecordLengthsChanged(controlsettings.samplerate.limits->recordLengths);
-    //    updateSamplerateLimits();
-    //    emit recordLengthChanged(getRecordLength());
-    //    if (!isRollMode()) emit recordTimeChanged((double)getRecordLength() / controlsettings.samplerate.current);
-    //    emit samplerateChanged(controlsettings.samplerate.current);
+    emit availableRecordLengthsChanged(controlsettings.samplerate.limits->recordLengths);
+    updateSamplerateLimits();
+    emit recordLengthChanged(getRecordLength());
+    if (!isRollMode()) emit recordTimeChanged((double)getRecordLength() / controlsettings.samplerate.current);
+    emit samplerateChanged(controlsettings.samplerate.current);
 
     emit samplingStatusChanged(enabled);
 }

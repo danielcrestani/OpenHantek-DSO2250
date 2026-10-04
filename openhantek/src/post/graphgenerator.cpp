@@ -54,15 +54,13 @@ void GraphGenerator::generateGraphsTYvoltage(PPresult *result) {
         }
         // Check if the sample count has changed
         size_t sampleCount = samples.sample.size();
-        if (sampleCount > 500000) {
-            qWarning() << "Sample count too high!";
-            throw new std::runtime_error("Sample count too high!");
-        }
         sampleCount -= (swTriggerStart - preTrigSamples);
-        size_t neededSize = sampleCount * 2;
-
-        // Set size directly to avoid reallocations
-        target.reserve(neededSize);
+        // Registros grandes (ex.: 524288 amostras do DSO-2250) excedem o limite de desenho:
+        // em vez de abortar, desenha apenas 1 de cada "step" pontos.
+        const size_t maxDrawPoints = 250000;
+        const size_t step = sampleCount > maxDrawPoints ? (sampleCount + maxDrawPoints - 1) / maxDrawPoints : 1;
+        target.clear();
+        target.reserve(sampleCount / step + 1);
 
         // What's the horizontal distance between sampling points?
         float horizontalFactor = (float)(samples.interval / scope->horizontal.timebase);
@@ -75,9 +73,9 @@ void GraphGenerator::generateGraphsTYvoltage(PPresult *result) {
 
         std::advance(dataIterator, swTriggerStart - preTrigSamples);
 
-        for (unsigned int position = 0; position < sampleCount; ++position) {
+        for (size_t position = 0; position < sampleCount; position += step) {
             target.push_back(QVector3D(position * horizontalFactor - DIVS_TIME / 2,
-                                       (float)*(dataIterator++) / gain * invert + offset, 0.0));
+                                       (float)dataIterator[position] / gain * invert + offset, 0.0));
         }
     }
 }
@@ -97,10 +95,6 @@ void GraphGenerator::generateGraphsTYspectrum(PPresult *result) {
         }
         // Check if the sample count has changed
         size_t sampleCount = samples.sample.size();
-        if (sampleCount > 500000) {
-            qWarning() << "Sample count too high!";
-            throw new std::runtime_error("Sample count too high!");
-        }
         size_t neededSize = sampleCount * 2;
 
         // Set size directly to avoid reallocations
