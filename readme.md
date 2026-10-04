@@ -1,3 +1,86 @@
+# OpenHantek – edição DSO-2250
+
+Versão modificada do [OpenHantek](https://github.com/OpenHantek/openhantek) focada no osciloscópio USB
+**Hantek DSO-2250** no Linux (desenvolvida e usada no Pop!_OS), com interface em português
+parecida com a de um osciloscópio de bancada.
+
+> Este é um *fork* não oficial. O OpenHantek original não é mais mantido para este modelo e tinha vários
+> defeitos com o DSO-2250 (escalas trocadas, travamentos, falta de atenuação de ponteira). Todo o crédito do
+> projeto base é dos seus autores — veja [Créditos e licença](#créditos-e-licença).
+
+## O que há de novo
+
+**Funcionamento do DSO-2250**
+- Relés de ganho e sequência de ganhos corrigidos (engenharia reversa do `SDK2250.dll` do fabricante);
+  todas as escalas de 10 mV/div a 5 V/div funcionam.
+- Corrigidos: tamanho de registro, travamento “Sample count too high”, sinais iniciais da aquisição,
+  cálculo da taxa de amostragem.
+- Rejeição de altas frequências no disparo (filtro de trigger do próprio DSO-2250 + filtro em software).
+- Alinhamento do disparo com precisão de subamostra: sinais rápidos ficam parados na tela.
+- Interpolação sen(x)/x e desenho com detecção de pico (nenhum pico some ao comprimir o tempo).
+
+**Interface**
+- Painel frontal estilo osciloscópio (largura fixa, seções recolhíveis e coloridas): por canal LIGADO,
+  DC/AC, INV, V/div, posição, ponteira; Horizontal (tempo/div, pré-disparo, memória); Trigger (AUTO/NORMAL/ÚNICO,
+  fonte, borda, REJ. AF, nível, 50 %); FFT.
+- RUN/STOP, SINGLE, AUTOSET e FORCE na barra do topo.
+- Ponteiras x1/x10/x50/x100 e **garras de corrente Hantek CC-65 e CC-650** — a tela, as medições, a FFT e o
+  registro passam a mostrar ampères.
+- Medições no rodapé, na cor do canal, escolhidas no menu **Medições** (Vpp, máx, mín, média, RMS, RMS AC,
+  frequência, período, ciclo ativo, larguras, subida, descida).
+- Menu **Cursores**: tempo/frequência, amplitude/nível ou ambos, “Posicionar no sinal”, leitura no rodapé
+  (Δt, 1/Δt, ΔV/ΔA, Δf, ΔdB).
+- Menus e configurações em português; cores aplicadas na hora.
+
+**Analisador de espectro (FFT)**
+- Escala calibrada em dBV (ou dBA com garra), níveis corretos com qualquer janela.
+- Janelas Retangular, Hann, Flat-top e Blackman-Harris; média de 4/16/64 aquisições; retenção de pico.
+- AUTO FFT, faixa total (0 Hz até Nyquist na tela toda), escalas nos eixos, modo “Só FFT”.
+- Marcação na tela da fundamental (F) e dos harmônicos que se destacam do ruído, com lista em dBc e THD.
+
+**Arquivos**
+- **Exportar → Imagem da tela** (PNG/JPG/BMP) ou copiar para a área de transferência.
+- **Registro de dados** por canal (botão ● REG): medições a cada aquisição ou forma de onda, início manual
+  ou por trigger, parada por quantidade ou tempo, CSV em português (`;` e vírgula decimal).
+
+Guia completo de uso: **[docs/dso2250-guia.md](docs/dso2250-guia.md)** ·
+Lista de modificações: **[MODIFICACOES.md](MODIFICACOES.md)**
+
+## Compilar e instalar (Pop!_OS / Ubuntu / Debian)
+
+```sh
+sudo apt install g++ cmake qttools5-dev qttools5-dev-tools libfftw3-dev binutils-dev \
+     libusb-1.0-0-dev libqt5opengl5-dev mesa-common-dev libgl1-mesa-dev libgles2-mesa-dev
+git clone https://github.com/danielcrestani/OpenHantek-Fork-DSO2250.git
+cd OpenHantek-Fork-DSO2250
+mkdir build && cd build
+cmake .. && make -j$(nproc)
+sudo cp ../firmware/60-hantek.rules /lib/udev/rules.d/ && sudo udevadm control --reload-rules
+./openhantek/OpenHantek
+```
+
+Depois de copiar a regra do udev, desconecte e reconecte o DSO-2250. O firmware é enviado pelo próprio
+programa na primeira conexão (o aparelho muda de `04b4:2250` para `04b5:2250`).
+
+> **Segurança:** o DSO-2250 **não é isolado** — o terra das ponteiras é o terra do computador. Não meça a rede
+> elétrica diretamente; use ponteira diferencial, transformador isolador ou garra de corrente.
+
+## Créditos e licença
+
+- **Projeto original:** OpenHantek — Copyright © 2010, 2011 Oliver Haag; Copyright © 2012–2017 comunidade
+  OpenHantek (David Gräff e colaboradores). <https://github.com/OpenHantek/openhantek>
+- **Modificações (2026):** Daniel Crestani, com assistência do Claude (Anthropic).
+
+Este programa é software livre, distribuído sob a **GNU General Public License versão 3 ou posterior**
+(arquivo [COPYING](COPYING)), sem nenhuma garantia. As alterações em relação ao original estão descritas em
+[MODIFICACOES.md](MODIFICACOES.md) e no histórico de commits; o histórico completo do projeto original foi
+preservado.
+
+---
+
+<details>
+<summary><b>README original do OpenHantek (inglês)</b> — algumas funções descritas ali foram alteradas nesta versão</summary>
+
 # OpenHantek [![Build Status](https://travis-ci.org/OpenHantek/openhantek.svg?branch=master)](https://travis-ci.org/OpenHantek/openhantek) [![Build status](https://ci.appveyor.com/api/projects/status/github/openhantek/openhantek?branch=master&svg=true)](https://ci.appveyor.com/project/openhantek/openhantek/branch/master) [![Stability: Unsupported](https://masterminds.github.io/stability/unsupported.svg)](https://masterminds.github.io/stability/unsupported.html)
 
 OpenHantek is a free software for Hantek and compatible (Voltcraft/Darkwire/Protek/Acetech) USB digital signal oscilloscopes.
@@ -70,3 +153,5 @@ We welcome any reported Github Issue if you have a problem with this software. S
 ## Other DSO open source software
 * [SigRok](http://www.sigrok.org)
 * [Software for the Hantek 6022BE/BL only](http://pididu.com/wordpress/basicscope/)
+
+</details>
