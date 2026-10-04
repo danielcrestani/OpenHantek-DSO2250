@@ -28,6 +28,9 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QTimer>
+#include <QApplication>
+#include <QDesktopServices>
+#include <QUrl>
 #include <QToolButton>
 #include <QClipboard>
 #include <QGuiApplication>
@@ -74,7 +77,7 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, QWid
     // Window title
     setWindowIcon(QIcon(":openhantek.png"));
     setWindowTitle(
-        tr("OpenHantek - Device %1 - Renderer %2")
+        tr("OpenHantek DSO-2250 (fork) - Dispositivo %1 - %2")
             .arg(QString::fromStdString(dsoControl->getDevice()->getModel()->name))
             .arg(QSurfaceFormat::defaultFormat().renderableType() == QSurfaceFormat::OpenGL ? "OpenGL" : "OpenGL ES"));
 
@@ -136,24 +139,15 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, QWid
     // Menu de medições (rodapé por canal)
     menuBar()->insertMenu(ui->menuHelp->menuAction(), measurementBar->menu());
 
-    // View > Janelas: reabrir qualquer painel fechado
-    QMenu *windowsMenu = ui->menuView->addMenu(tr("Janelas"));
+    // Exibir: fósforo, lupa e painel frontal. As janelas antigas (Horizontal, Trigger, Voltage, Spectrum)
+    // ficam escondidas: tudo o que elas faziam está no painel frontal.
     frontPanel->toggleViewAction()->setText(tr("Painel frontal"));
-    windowsMenu->addAction(frontPanel->toggleViewAction());
-    windowsMenu->addSeparator();
-    windowsMenu->addAction(horizontalDock->toggleViewAction());
-    windowsMenu->addAction(triggerDock->toggleViewAction());
-    windowsMenu->addAction(voltageDock->toggleViewAction());
-    windowsMenu->addAction(spectrumDock->toggleViewAction());
-    windowsMenu->addSeparator();
-    QAction *restoreAll = windowsMenu->addAction(tr("Mostrar todas as janelas"));
-    connect(restoreAll, &QAction::triggered, [this, horizontalDock, triggerDock, voltageDock, spectrumDock]() {
-        for (QDockWidget *d : std::vector<QDockWidget *>{frontPanel, horizontalDock, triggerDock,
-                                                          voltageDock, spectrumDock}) {
-            if (d->isFloating()) d->setFloating(false);
-            d->show();
-        }
-    });
+    ui->menuView->addAction(frontPanel->toggleViewAction());
+    for (QDockWidget *d : std::vector<QDockWidget *>{horizontalDock, triggerDock, voltageDock, spectrumDock}) {
+        d->setFloating(false);
+        d->hide();
+    }
+    frontPanel->show();
 
     // Contraste da grade: só no painel (botão "Grade")
     const int alpha = mSettings->view.screen.grid.alpha();
@@ -369,14 +363,40 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, QWid
 
     connect(ui->actionAbout, &QAction::triggered, [this]() {
         QMessageBox::about(
-            this, tr("About OpenHantek %1").arg(VERSION),
-            tr("<p>This is a open source software for Hantek USB oscilloscopes.</p>"
-               "<p>Copyright &copy; 2010, 2011 Oliver Haag<br><a "
-               "href='mailto:oliver.haag@gmail.com'>oliver.haag@gmail.com</a></p>"
-               "<p>Copyright &copy; 2012-2017 OpenHantek community<br>"
-               "<a href='https://github.com/OpenHantek/openhantek'>https://github.com/OpenHantek/openhantek</a></p>"));
-
+            this, tr("Sobre o OpenHantek DSO-2250"),
+            tr("<h3>OpenHantek &ndash; edição DSO-2250</h3>"
+               "<p>Versão %1 &mdash; <b>versão modificada</b> do OpenHantek.</p>"
+               "<p><b>Projeto original</b><br>"
+               "Copyright &copy; 2010, 2011 Oliver Haag<br>"
+               "Copyright &copy; 2012&ndash;2017 comunidade OpenHantek<br>"
+               "<a href='https://github.com/OpenHantek/openhantek'>github.com/OpenHantek/openhantek</a></p>"
+               "<p><b>Modificações</b> (2026): Daniel Crestani, com assistência do Claude (Anthropic).<br>"
+               "Suporte completo ao Hantek DSO-2250, painel frontal, FFT calibrada com harmônicos, "
+               "ponteiras e garras de corrente CC-65/CC-650, cursores, registro de dados e outras.<br>"
+               "Código-fonte: <a href='https://github.com/danielcrestani/OpenHantek-Fork-DSO2250'>"
+               "github.com/danielcrestani/OpenHantek-Fork-DSO2250</a></p>"
+               "<p>Este programa é software livre: você pode redistribuí-lo e/ou modificá-lo sob os termos da "
+               "<a href='https://www.gnu.org/licenses/gpl-3.0.html'>GNU General Public License</a>, versão 3 ou "
+               "(a seu critério) qualquer versão posterior, publicada pela Free Software Foundation.</p>"
+               "<p>Este programa é distribuído na esperança de que seja útil, mas <b>SEM NENHUMA GARANTIA</b>; "
+               "sem mesmo a garantia implícita de COMERCIALIZAÇÃO ou ADEQUAÇÃO A UM PROPÓSITO ESPECÍFICO. "
+               "Veja a licença para mais detalhes.</p>"
+               "<p><small>O DSO-2250 não é isolado: o terra das ponteiras é o terra do computador.</small></p>")
+                .arg(VERSION));
     });
+    ui->actionAbout->setText(tr("Sobre o OpenHantek DSO-2250"));
+    QAction *forkPage = new QAction(tr("Página deste fork (código e documentação)"), this);
+    connect(forkPage, &QAction::triggered,
+            []() { QDesktopServices::openUrl(QUrl("https://github.com/danielcrestani/OpenHantek-Fork-DSO2250")); });
+    QAction *origPage = new QAction(tr("Projeto original OpenHantek"), this);
+    connect(origPage, &QAction::triggered,
+            []() { QDesktopServices::openUrl(QUrl("https://github.com/OpenHantek/openhantek")); });
+    QAction *aboutQt = new QAction(tr("Sobre o Qt"), this);
+    connect(aboutQt, &QAction::triggered, qApp, &QApplication::aboutQt);
+    ui->menuHelp->insertAction(ui->actionAbout, forkPage);
+    ui->menuHelp->insertAction(ui->actionAbout, origPage);
+    ui->menuHelp->insertSeparator(ui->actionAbout);
+    ui->menuHelp->addAction(aboutQt);
 
     if (mSettings->scope.horizontal.samplerateSource == DsoSettingsScopeHorizontal::Samplerrate)
         dsoWidget->updateSamplerate(mSettings->scope.horizontal.samplerate);
@@ -495,11 +515,8 @@ void MainWindow::setupCursorMenu() {
     connect(center, &QAction::triggered, [this]() {
         dsoWidget->setCursorPositions(dsoWidget->selectedCursor(), QPointF(-1.0, -1.0), QPointF(1.0, 1.0));
     });
-    menu->addSeparator();
-    QAction *table = menu->addAction(tr("Tabela lateral (antiga)"));
-    table->setCheckable(true);
-    table->setChecked(mSettings->view.cursorTable);
-    connect(table, &QAction::toggled, [this](bool on) { dsoWidget->setCursorTableVisible(on); });
+    // a tabela lateral antiga não é mais usada: a leitura dos cursores fica no rodapé
+    if (mSettings->view.cursorTable) dsoWidget->setCursorTableVisible(false);
 
     // keep the check marks in sync (the table and the mouse can also change things)
     connect(menu, &QMenu::aboutToShow, [this, srcActions, typeActions, typeMenu, fit]() {

@@ -332,6 +332,16 @@ QGroupBox *FrontPanelDock::makeHorizontalBox() {
     g->addWidget(pretriggerLabel, 1, 2);
     g->addWidget(pRight, 1, 3);
     g->addWidget(pCenter, 2, 2);
+    // Memória (tamanho do registro): antes só na janela Horizontal antiga
+    g->addWidget(new QLabel(tr("Memória")), 3, 0);
+    recLenCombo = new QComboBox();
+    recLenCombo->setToolTip(tr("Amostras por aquisição. Maior = mais resolução na FFT e na lupa, porém mais lento.\n"
+                               "Roll = rolagem contínua (tempos/div longos)."));
+    g->addWidget(recLenCombo, 3, 1, 1, 3);
+    connect(recLenCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated), [this](int index) {
+        horizontalDock->selectRecordLength(index);
+        refresh();
+    });
     g->setColumnStretch(2, 1);
 
     connect(tFaster, &QPushButton::clicked, [this]() {
@@ -606,6 +616,18 @@ void FrontPanelDock::refresh() {
     }
 
     timebaseLabel->setText(valueToString(scope->horizontal.timebase, UNIT_SECONDS, 3) + "/div");
+    if (recLenCombo) {
+        const QStringList names = horizontalDock->recordLengthNames();
+        QStringList mine;
+        for (int i = 0; i < recLenCombo->count(); ++i) mine << recLenCombo->itemText(i);
+        QSignalBlocker blk(recLenCombo);
+        if (names != mine) {
+            recLenCombo->clear();
+            recLenCombo->addItems(names);
+        }
+        if (recLenCombo->currentIndex() != horizontalDock->recordLengthIndex())
+            recLenCombo->setCurrentIndex(horizontalDock->recordLengthIndex());
+    }
     pretriggerLabel->setText(QString("%1 %").arg((int)std::round(scope->trigger.position * 100)));
 
     if (QAbstractButton *b = modeGroup->button((int)scope->trigger.mode)) b->setChecked(true);

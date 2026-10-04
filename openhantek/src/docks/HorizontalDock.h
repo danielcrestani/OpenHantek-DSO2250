@@ -37,6 +37,10 @@ class HorizontalDock : public QDockWidget {
     void setFrequencybase(double timebase);
     /// Change the frequencybase like the user did (emits frequencybaseChanged)
     void selectFrequencybase(double frequencybase);
+    /// Record length choices as shown in the combo box, current index, and selection (used by the front panel)
+    QStringList recordLengthNames() const;
+    int recordLengthIndex() const;
+    void selectRecordLength(int index);
     /// \brief Changes the samplerate.
     /// \param samplerate The samplerate in seconds.
     void setSamplerate(double samplerate);

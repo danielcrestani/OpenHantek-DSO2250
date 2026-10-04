@@ -108,6 +108,7 @@ class FrontPanelDock : public QDockWidget {
     QPushButton *runButton = nullptr;
     QPushButton *singleButton = nullptr;
     QLabel *timebaseLabel = nullptr;
+    QComboBox *recLenCombo = nullptr;
     QLabel *pretriggerLabel = nullptr;
     QLabel *triggerLevelLabel = nullptr;
     QButtonGroup *modeGroup = nullptr;

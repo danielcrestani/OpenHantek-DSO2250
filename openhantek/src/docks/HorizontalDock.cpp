@@ -114,6 +114,19 @@ void HorizontalDock::selectFrequencybase(double frequencybase) {
     frequencybaseSelected(frequencybaseSiSpinBox->value());
 }
 
+QStringList HorizontalDock::recordLengthNames() const {
+    QStringList l;
+    for (int i = 0; i < recordLengthComboBox->count(); ++i) l << recordLengthComboBox->itemText(i);
+    return l;
+}
+
+int HorizontalDock::recordLengthIndex() const { return recordLengthComboBox->currentIndex(); }
+
+void HorizontalDock::selectRecordLength(int index) {
+    if (index < 0 || index >= recordLengthComboBox->count()) return;
+    recordLengthComboBox->setCurrentIndex(index); // emits -> recordLengthSelected
+}
+
 void HorizontalDock::setFrequencybase(double frequencybase) {
     QSignalBlocker blocker(frequencybaseSiSpinBox);
     frequencybaseSiSpinBox->setValue(frequencybase);
