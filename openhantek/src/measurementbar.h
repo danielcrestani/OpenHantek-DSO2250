@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <QDockWidget>
 #include <QColor>
+#include <QWidget>
 #include <memory>
 #include <vector>
 
@@ -12,12 +12,12 @@
 #include "scopesettings.h"
 
 class QAction;
+class QLabel;
 class QMenu;
-class QTableWidget;
 
-/// \brief Automatic measurements (Vpp, RMS, frequency, duty cycle, rise time...) shown as a table.
-/// The measurements to show are chosen in the "Medições" menu.
-class MeasurementsDock : public QDockWidget {
+/// \brief Footer below the scope screen showing the measurements selected per channel,
+/// in the channel color (like a bench oscilloscope). The selection is made in the "Medições" menu.
+class MeasurementBar : public QWidget {
     Q_OBJECT
 
   public:
@@ -38,10 +38,10 @@ class MeasurementsDock : public QDockWidget {
         COUNT
     };
 
-    MeasurementsDock(const DsoSettingsScope *scope, const Dso::ControlSpecification *spec,
-                     const std::vector<QColor> &channelColors, QWidget *parent);
+    MeasurementBar(const DsoSettingsScope *scope, const Dso::ControlSpecification *spec,
+                   const std::vector<QColor> &channelColors, QWidget *parent);
 
-    /// Menu with one checkable action per measurement (to be inserted in the menu bar)
+    /// "Medições" menu with one submenu per channel
     QMenu *menu() const { return measMenu; }
 
     void showData(std::shared_ptr<PPresult> data);
@@ -52,18 +52,18 @@ class MeasurementsDock : public QDockWidget {
         double v[COUNT];
     };
     static QString name(int m);
+    static QString shortName(int m);
     static QString format(int m, double value);
     static Result analyze(const std::vector<double> &samples, double interval, double fallbackFreq);
-    void rebuildRows();
-    void updateTable();
+    void updateLabels();
     void saveSelection();
+    bool selected(ChannelID ch, int m) const;
 
     const DsoSettingsScope *scope;
     const Dso::ControlSpecification *spec;
     std::vector<QColor> colors;
-    QTableWidget *table;
     QMenu *measMenu;
-    std::vector<QAction *> actions;
-    std::vector<int> rows; ///< measurement shown in each row
+    std::vector<std::vector<QAction *>> actions; ///< [channel][measurement]
+    std::vector<QLabel *> labels;                ///< one line per channel
     std::vector<Result> results;
 };

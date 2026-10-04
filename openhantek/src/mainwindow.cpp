@@ -3,7 +3,7 @@
 #include "ui_mainwindow.h"
 
 #include "FrontPanelDock.h"
-#include "MeasurementsDock.h"
+#include "measurementbar.h"
 #include "HorizontalDock.h"
 #include "SpectrumDock.h"
 #include "TriggerDock.h"
@@ -25,6 +25,7 @@
 #include <QActionGroup>
 #include <QFileDialog>
 #include <QMenu>
+#include <QVBoxLayout>
 #include <QLineEdit>
 #include <QMessageBox>
 
@@ -92,7 +93,16 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, Expo
 
     // Central oszilloscope widget
     dsoWidget = new DsoWidget(&mSettings->scope, &mSettings->view, spec);
-    setCentralWidget(dsoWidget);
+
+    // Tela + rodapé de medições por canal
+    measurementBar = new MeasurementBar(scope, spec, mSettings->view.screen.voltage, this);
+    QWidget *central = new QWidget(this);
+    QVBoxLayout *centralLayout = new QVBoxLayout(central);
+    centralLayout->setContentsMargins(0, 0, 0, 0);
+    centralLayout->setSpacing(0);
+    centralLayout->addWidget(dsoWidget, 1);
+    centralLayout->addWidget(measurementBar, 0);
+    setCentralWidget(central);
 
     // Painel frontal estilo osciloscópio; as janelas antigas ficam agrupadas em abas
     frontPanel = new FrontPanelDock(scope, spec, dsoControl, voltageDock, horizontalDock, triggerDock, dsoWidget,
@@ -103,16 +113,13 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, Expo
     tabifyDockWidget(horizontalDock, spectrumDock);
     horizontalDock->raise();
 
-    // Medições automáticas (tabela + menu próprio)
-    measurementsDock = new MeasurementsDock(scope, spec, mSettings->view.screen.voltage, this);
-    addDockWidget(Qt::RightDockWidgetArea, measurementsDock);
-    menuBar()->insertMenu(ui->menuHelp->menuAction(), measurementsDock->menu());
+    // Menu de medições (rodapé por canal)
+    menuBar()->insertMenu(ui->menuHelp->menuAction(), measurementBar->menu());
 
     // View > Janelas: reabrir qualquer painel fechado
     QMenu *windowsMenu = ui->menuView->addMenu(tr("Janelas"));
     frontPanel->toggleViewAction()->setText(tr("Painel frontal"));
     windowsMenu->addAction(frontPanel->toggleViewAction());
-    windowsMenu->addAction(measurementsDock->toggleViewAction());
     windowsMenu->addSeparator();
     windowsMenu->addAction(horizontalDock->toggleViewAction());
     windowsMenu->addAction(triggerDock->toggleViewAction());
@@ -121,7 +128,7 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, Expo
     windowsMenu->addSeparator();
     QAction *restoreAll = windowsMenu->addAction(tr("Mostrar todas as janelas"));
     connect(restoreAll, &QAction::triggered, [this, horizontalDock, triggerDock, voltageDock, spectrumDock]() {
-        for (QDockWidget *d : std::vector<QDockWidget *>{frontPanel, measurementsDock, horizontalDock, triggerDock,
+        for (QDockWidget *d : std::vector<QDockWidget *>{frontPanel, horizontalDock, triggerDock,
                                                           voltageDock, spectrumDock}) {
             if (d->isFloating()) d->setFloating(false);
             d->show();
@@ -366,7 +373,7 @@ MainWindow::~MainWindow() { delete ui; }
 void MainWindow::showNewData(std::shared_ptr<PPresult> data) {
     dsoWidget->showNew(data);
     if (frontPanel) frontPanel->showData(data);
-    if (measurementsDock) measurementsDock->showData(data);
+    if (measurementBar) measurementBar->showData(data);
 }
 
 void MainWindow::applyGridContrast(int level) {

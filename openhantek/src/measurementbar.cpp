@@ -1,91 +1,87 @@
 // SPDX-License-Identifier: GPL-2.0+
-// Medições automáticas em tabela, escolhidas pelo menu "Medições".
+// Rodapé de medições por canal, na cor do canal.
 
-#include "MeasurementsDock.h"
+#include "measurementbar.h"
 
 #include <QAction>
-#include <QHeaderView>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QMenu>
 #include <QSettings>
 #include <QSignalBlocker>
-#include <QTableWidget>
+#include <QPalette>
+#include <QVBoxLayout>
 
 #include <algorithm>
 #include <cmath>
 
 #include "utils/printutils.h"
 
-MeasurementsDock::MeasurementsDock(const DsoSettingsScope *scope, const Dso::ControlSpecification *spec,
-                                   const std::vector<QColor> &channelColors, QWidget *parent)
-    : QDockWidget(tr("Medições"), parent), scope(scope), spec(spec), colors(channelColors) {
-    setObjectName("MeasurementsDock");
+MeasurementBar::MeasurementBar(const DsoSettingsScope *scope, const Dso::ControlSpecification *spec,
+                               const std::vector<QColor> &channelColors, QWidget *parent)
+    : QWidget(parent), scope(scope), spec(spec), colors(channelColors) {
     results.resize(spec->channels);
+    actions.resize(spec->channels);
 
-    table = new QTableWidget(0, (int)spec->channels);
-    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    table->setSelectionMode(QAbstractItemView::NoSelection);
-    table->setFocusPolicy(Qt::NoFocus);
-    table->verticalHeader()->setDefaultSectionSize(22);
-    table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-    table->setStyleSheet("QTableWidget { background: #11141a; color: #e6e9ee; gridline-color: #3a404a;"
-                         "  font-family: monospace; font-size: 10pt; }"
-                         "QHeaderView::section { background: #23272e; color: #c8ccd4; border: 1px solid #3a404a;"
-                         "  padding: 3px; font-weight: bold; }");
+    setAutoFillBackground(true);
+    QPalette pal = palette();
+    pal.setColor(QPalette::Window, Qt::black);
+    setPalette(pal);
+
+    QVBoxLayout *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(8, 2, 8, 4);
+    layout->setSpacing(1);
     for (ChannelID ch = 0; ch < spec->channels; ++ch) {
-        QTableWidgetItem *h = new QTableWidgetItem(tr("CH%1").arg(ch + 1));
-        if (ch < colors.size()) {
-            QColor c = colors[ch];
-            c.setAlpha(255);
-            h->setForeground(c);
-        }
-        table->setHorizontalHeaderItem((int)ch, h);
+        QLabel *l = new QLabel();
+        QColor c = ch < colors.size() ? colors[ch] : QColor(Qt::white);
+        c.setAlpha(255);
+        l->setStyleSheet(QString("QLabel { color: %1; font-family: monospace; font-size: 10pt; }").arg(c.name()));
+        l->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        layout->addWidget(l);
+        labels.push_back(l);
     }
-    setWidget(table);
 
-    // menu
+    // Menu: Medições > CH1 / CH2 > (lista)
     measMenu = new QMenu(tr("&Medições"), parent);
     QSettings settings;
-    settings.beginGroup("FrontPanelMeasurements");
-    const bool defaults[COUNT] = {true, false, false, true, true, false, true, true, false, false, false, false, false};
-    for (int m = 0; m < COUNT; ++m) {
-        QAction *a = measMenu->addAction(name(m));
-        a->setCheckable(true);
-        a->setChecked(settings.value(QString("m%1").arg(m), defaults[m]).toBool());
-        connect(a, &QAction::toggled, [this]() {
+    settings.beginGroup("ChannelMeasurements");
+    const bool defaults[COUNT] = {true, false, false, false, true, false, true, false, false, false, false, false, false};
+    for (ChannelID ch = 0; ch < spec->channels; ++ch) {
+        QMenu *sub = measMenu->addMenu(tr("CH%1").arg(ch + 1));
+        for (int m = 0; m < COUNT; ++m) {
+            QAction *a = sub->addAction(name(m));
+            a->setCheckable(true);
+            a->setChecked(settings.value(QString("ch%1_m%2").arg(ch).arg(m), defaults[m]).toBool());
+            connect(a, &QAction::toggled, [this]() {
+                saveSelection();
+                updateLabels();
+            });
+            actions[ch].push_back(a);
+        }
+        sub->addSeparator();
+        QAction *clear = sub->addAction(tr("Nenhuma"));
+        connect(clear, &QAction::triggered, [this, ch]() {
+            for (QAction *a : actions[ch]) {
+                QSignalBlocker b(a);
+                a->setChecked(false);
+            }
             saveSelection();
-            rebuildRows();
+            updateLabels();
         });
-        actions.push_back(a);
     }
     settings.endGroup();
     measMenu->addSeparator();
-    QAction *all = measMenu->addAction(tr("Mostrar todas"));
-    connect(all, &QAction::triggered, [this]() {
-        for (QAction *a : actions) {
-            QSignalBlocker b(a);
-            a->setChecked(true);
-        }
-        saveSelection();
-        rebuildRows();
-    });
-    QAction *none = measMenu->addAction(tr("Limpar seleção"));
-    connect(none, &QAction::triggered, [this]() {
-        for (QAction *a : actions) {
-            QSignalBlocker b(a);
-            a->setChecked(false);
-        }
-        saveSelection();
-        rebuildRows();
-    });
-    measMenu->addSeparator();
-    QAction *show = toggleViewAction();
-    show->setText(tr("Mostrar tabela de medições"));
-    measMenu->addAction(show);
+    QAction *showBar = measMenu->addAction(tr("Mostrar rodapé de medições"));
+    showBar->setCheckable(true);
+    showBar->setChecked(true);
+    connect(showBar, &QAction::toggled, this, &QWidget::setVisible);
 
-    rebuildRows();
+    updateLabels();
 }
 
-QString MeasurementsDock::name(int m) {
+bool MeasurementBar::selected(ChannelID ch, int m) const { return actions[ch][(size_t)m]->isChecked(); }
+
+QString MeasurementBar::name(int m) {
     switch (m) {
     case VPP: return tr("Pico a pico (Vpp)");
     case VMAX: return tr("Máximo");
@@ -104,7 +100,26 @@ QString MeasurementsDock::name(int m) {
     return QString();
 }
 
-QString MeasurementsDock::format(int m, double value) {
+QString MeasurementBar::shortName(int m) {
+    switch (m) {
+    case VPP: return "Vpp";
+    case VMAX: return tr("Máx");
+    case VMIN: return tr("Mín");
+    case MEAN: return tr("Média");
+    case RMS: return "RMS";
+    case ACRMS: return "RMS AC";
+    case FREQUENCY: return tr("Freq");
+    case PERIOD: return tr("Per");
+    case DUTY: return tr("Ciclo");
+    case WIDTH_POS: return "+Larg";
+    case WIDTH_NEG: return "-Larg";
+    case RISE: return tr("Subida");
+    case FALL: return tr("Descida");
+    }
+    return QString();
+}
+
+QString MeasurementBar::format(int m, double value) {
     if (!std::isfinite(value)) return QString("---");
     switch (m) {
     case FREQUENCY: return valueToString(value, UNIT_HERTZ, 4);
@@ -118,42 +133,29 @@ QString MeasurementsDock::format(int m, double value) {
     }
 }
 
-void MeasurementsDock::saveSelection() {
+void MeasurementBar::saveSelection() {
     QSettings settings;
-    settings.beginGroup("FrontPanelMeasurements");
-    for (int m = 0; m < COUNT; ++m) settings.setValue(QString("m%1").arg(m), actions[(size_t)m]->isChecked());
+    settings.beginGroup("ChannelMeasurements");
+    for (ChannelID ch = 0; ch < spec->channels; ++ch)
+        for (int m = 0; m < COUNT; ++m) settings.setValue(QString("ch%1_m%2").arg(ch).arg(m), selected(ch, m));
     settings.endGroup();
 }
 
-void MeasurementsDock::rebuildRows() {
-    rows.clear();
-    for (int m = 0; m < COUNT; ++m)
-        if (actions[(size_t)m]->isChecked()) rows.push_back(m);
-    table->setRowCount((int)rows.size());
-    for (size_t r = 0; r < rows.size(); ++r) {
-        table->setVerticalHeaderItem((int)r, new QTableWidgetItem(name(rows[r])));
-        for (int c = 0; c < table->columnCount(); ++c) {
-            QTableWidgetItem *it = new QTableWidgetItem("---");
-            it->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-            table->setItem((int)r, c, it);
+void MeasurementBar::updateLabels() {
+    for (ChannelID ch = 0; ch < spec->channels; ++ch) {
+        QStringList parts;
+        const bool used = ch < scope->voltage.size() && scope->voltage[ch].used;
+        const Result &res = results[ch];
+        for (int m = 0; m < COUNT; ++m) {
+            if (!selected(ch, m)) continue;
+            parts << QString("%1 %2").arg(shortName(m), used && res.valid ? format(m, res.v[m]) : QString("---"));
         }
-    }
-    updateTable();
-}
-
-void MeasurementsDock::updateTable() {
-    for (size_t r = 0; r < rows.size(); ++r) {
-        for (ChannelID ch = 0; ch < spec->channels; ++ch) {
-            QTableWidgetItem *it = table->item((int)r, (int)ch);
-            if (!it) continue;
-            const Result &res = results[ch];
-            const bool used = ch < scope->voltage.size() && scope->voltage[ch].used;
-            it->setText(used && res.valid ? format(rows[r], res.v[rows[r]]) : QString("---"));
-        }
+        labels[ch]->setVisible(used && !parts.isEmpty());
+        labels[ch]->setText(QString("CH%1   ").arg(ch + 1) + parts.join("    "));
     }
 }
 
-void MeasurementsDock::showData(std::shared_ptr<PPresult> data) {
+void MeasurementBar::showData(std::shared_ptr<PPresult> data) {
     if (!data) return;
     for (ChannelID ch = 0; ch < spec->channels && ch < data->channelCount(); ++ch) {
         const DataChannel *dc = data->data(ch);
@@ -163,10 +165,10 @@ void MeasurementsDock::showData(std::shared_ptr<PPresult> data) {
         }
         results[ch] = analyze(dc->voltage.sample, dc->voltage.interval, dc->frequency);
     }
-    if (isVisible()) updateTable();
+    if (isVisible()) updateLabels();
 }
 
-MeasurementsDock::Result MeasurementsDock::analyze(const std::vector<double> &v, double dt, double fallbackFreq) {
+MeasurementBar::Result MeasurementBar::analyze(const std::vector<double> &v, double dt, double fallbackFreq) {
     Result r;
     for (double &x : r.v) x = NAN;
     const size_t n = v.size();
