@@ -244,6 +244,8 @@ class HantekDsoControl : public QObject {
     /// \param gain The gain that should be met (V/div).
     /// \return The gain that has been set, ::Dso::ErrorCode on error.
     Dso::ErrorCode setGain(ChannelID channel, double gain);
+    /// \brief Set the probe attenuation (1, 10, 50, 100). Gains and trigger levels are given at the probe tip.
+    Dso::ErrorCode setProbe(ChannelID channel, double probe);
     /// \brief Set the offset for the given channel.
     /// Get the actual offset for the channel from controlsettings.voltage[channel].offsetReal
     /// \param channel The channel that should be set.

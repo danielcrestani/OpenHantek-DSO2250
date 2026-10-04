@@ -68,6 +68,7 @@ VoltageDock::VoltageDock(DsoSettingsScope *scope, const Dso::ControlSpecificatio
             setCoupling(channel, scope->voltage[channel].couplingOrMathIndex);
         else
             setMode(scope->voltage[channel].couplingOrMathIndex);
+        updateGainLabels(channel);
         setGain(channel, scope->voltage[channel].gainStepIndex);
         setUsed(channel, scope->voltage[channel].used);
 
@@ -115,6 +116,37 @@ void VoltageDock::setGain(ChannelID channel, unsigned gainStepIndex) {
     if (gainStepIndex >= scope->gainSteps.size()) return;
     QSignalBlocker blocker(channelBlocks[channel].gainComboBox);
     channelBlocks[channel].gainComboBox->setCurrentIndex((unsigned)gainStepIndex);
+}
+
+void VoltageDock::selectGain(ChannelID channel, unsigned gainStepIndex) {
+    if (channel >= scope->voltage.size() || gainStepIndex >= scope->gainSteps.size()) return;
+    channelBlocks[channel].gainComboBox->setCurrentIndex((int)gainStepIndex);
+}
+
+void VoltageDock::selectCoupling(ChannelID channel, unsigned couplingIndex) {
+    if (channel >= spec->channels || couplingIndex >= spec->couplings.size()) return;
+    channelBlocks[channel].miscComboBox->setCurrentIndex((int)couplingIndex);
+}
+
+void VoltageDock::selectUsed(ChannelID channel, bool used) {
+    if (channel >= scope->voltage.size()) return;
+    channelBlocks[channel].usedCheckBox->setChecked(used);
+}
+
+void VoltageDock::selectInverted(ChannelID channel, bool inverted) {
+    if (channel >= scope->voltage.size()) return;
+    channelBlocks[channel].invertCheckBox->setChecked(inverted);
+}
+
+void VoltageDock::updateGainLabels(ChannelID channel) {
+    if (channel >= scope->voltage.size()) return;
+    QComboBox *box = channelBlocks[channel].gainComboBox;
+    QSignalBlocker blocker(box);
+    const int current = box->currentIndex();
+    box->clear();
+    for (double gainStep : scope->gainSteps)
+        box->addItem(valueToString(gainStep * scope->voltage[channel].probe, UNIT_VOLTS, 0));
+    box->setCurrentIndex(current);
 }
 
 void VoltageDock::setMode(unsigned mathModeIndex) {

@@ -54,6 +54,7 @@ void applySettingsToDevice(HantekDsoControl *dsoControl, DsoSettingsScope *scope
     bool mathUsed = scope->anyUsed(spec->channels);
     for (ChannelID channel = 0; channel < spec->channels; ++channel) {
         dsoControl->setCoupling(channel, scope->coupling(channel, spec));
+        dsoControl->setProbe(channel, scope->voltage[channel].probe);
         dsoControl->setGain(channel, scope->gain(channel) * DIVS_VOLTAGE);
         dsoControl->setOffset(channel, (scope->voltage[channel].offset / DIVS_VOLTAGE) + 0.5);
         dsoControl->setTriggerLevel(channel, scope->voltage[channel].trigger);

@@ -12,6 +12,7 @@ class HorizontalDock;
 class TriggerDock;
 class SpectrumDock;
 class VoltageDock;
+class FrontPanelDock;
 
 namespace Ui {
 class MainWindow;
@@ -40,6 +41,7 @@ class MainWindow : public QMainWindow {
 
     // Central widgets
     DsoWidget *dsoWidget;
+    FrontPanelDock *frontPanel = nullptr;
 
     // Settings used for the whole program
     DsoSettings *mSettings;

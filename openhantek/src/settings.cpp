@@ -120,6 +120,10 @@ void DsoSettings::load() {
         if (store->contains("couplingOrMathIndex")) scope.voltage[channel].couplingOrMathIndex =
                 store->value("couplingOrMathIndex").toUInt();
         if (store->contains("inverted")) scope.voltage[channel].inverted = store->value("inverted").toBool();
+        if (store->contains("probe")) {
+            double p = store->value("probe").toDouble();
+            if (p == 1.0 || p == 10.0 || p == 50.0 || p == 100.0) scope.voltage[channel].probe = p;
+        }
         if (store->contains("offset")) scope.voltage[channel].offset = store->value("offset").toDouble();
         if (store->contains("trigger")) scope.voltage[channel].trigger = store->value("trigger").toDouble();
         if (store->contains("used")) scope.voltage[channel].used = store->value("used").toBool();
@@ -248,6 +252,7 @@ void DsoSettings::save() {
         store->setValue("gainStepIndex", scope.voltage[channel].gainStepIndex);
         store->setValue("couplingOrMathIndex", scope.voltage[channel].couplingOrMathIndex);
         store->setValue("inverted", scope.voltage[channel].inverted);
+        store->setValue("probe", scope.voltage[channel].probe);
         store->setValue("offset", scope.voltage[channel].offset);
         store->setValue("trigger", scope.voltage[channel].trigger);
         store->setValue("used", scope.voltage[channel].used);

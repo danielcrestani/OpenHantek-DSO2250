@@ -95,6 +95,17 @@ void HorizontalDock::closeEvent(QCloseEvent *event) {
     event->accept();
 }
 
+void HorizontalDock::stepTimebase(int steps) { timebaseSiSpinBox->stepBy(steps); }
+
+void HorizontalDock::selectTimebase(double timebase) {
+    double value;
+    {
+        QSignalBlocker blocker(timebaseSiSpinBox);
+        value = setTimebase(timebase);
+    }
+    timebaseSelected(value);
+}
+
 void HorizontalDock::setFrequencybase(double frequencybase) {
     QSignalBlocker blocker(frequencybaseSiSpinBox);
     frequencybaseSiSpinBox->setValue(frequencybase);

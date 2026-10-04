@@ -46,6 +46,14 @@ class VoltageDock : public QDockWidget {
     /// \param used True if the channel should be enabled, false otherwise.
     void setUsed(ChannelID channel, bool used);
 
+    /// Select values as if the user changed the widgets (signals are emitted)
+    void selectGain(ChannelID channel, unsigned gainStepIndex);
+    void selectCoupling(ChannelID channel, unsigned couplingIndex);
+    void selectUsed(ChannelID channel, bool used);
+    void selectInverted(ChannelID channel, bool inverted);
+    /// Rebuild the V/div labels after a probe attenuation change
+    void updateGainLabels(ChannelID channel);
+
   protected:
     void closeEvent(QCloseEvent *event);
 

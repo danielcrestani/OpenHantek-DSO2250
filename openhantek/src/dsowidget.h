@@ -93,6 +93,17 @@ class DsoWidget : public QWidget {
     GlScope *mainScope;     ///< The main scope screen
     GlScope *zoomScope;     ///< The optional magnified scope screen
 
+  public:
+    /// Programmatic access used by the front panel (same effect as moving the sliders)
+    void setTriggerLevelValue(ChannelID channel, double value) { updateTriggerLevel(channel, value); }
+    void setOffsetValue(ChannelID channel, double value) { updateOffset(channel, value); }
+    void setPretriggerValue(double value) {
+        if (value < 0.0) value = 0.0;
+        if (value > 1.0) value = 1.0;
+        mainSliders.triggerPositionSlider->setValue(0, value);
+        updateTriggerPosition(0, value, true);
+    }
+
   public slots:
     // Horizontal axis
     // void horizontalFormatChanged(HorizontalFormat format);

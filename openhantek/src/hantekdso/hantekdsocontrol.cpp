@@ -16,6 +16,7 @@
 #include "hantekprotocol/bulkStructs.h"
 #include "hantekprotocol/controlStructs.h"
 #include "models/modelDSO6022.h"
+#include "models/modelDSO2250.h"
 #include "usb/usbdevice.h"
 
 using namespace Hantek;
@@ -319,7 +320,15 @@ void HantekDsoControl::convertRawDataToSamples(const std::vector<unsigned char> 
             }
         }
     }
+
+    // Convert to volts at the probe tip
+    for (ChannelID ch = 0; ch < specification->channels && ch < result.data.size(); ++ch) {
+        const double probe = controlsettings.voltage[ch].probe;
+        if (probe != 1.0)
+            for (double &v : result.data[ch]) v *= probe;
+    }
 }
+
 
 double HantekDsoControl::getBestSamplerate(double samplerate, bool fastRate, bool maximum,
                                            unsigned *downsampler) const {
@@ -784,6 +793,10 @@ Dso::ErrorCode HantekDsoControl::setGain(ChannelID channel, double gain) {
 
     if (channel >= specification->channels) return Dso::ErrorCode::PARAMETER;
 
+    // The requested gain is given at the probe tip; the hardware sees it divided by the attenuation
+    controlsettings.voltage[channel].requestedGain = gain;
+    gain /= controlsettings.voltage[channel].probe;
+
     // Find lowest gain voltage thats at least as high as the requested
     unsigned gainID;
     for (gainID = 0; gainID < specification->gain.size() - 1; ++gainID)
@@ -804,14 +817,33 @@ Dso::ErrorCode HantekDsoControl::setGain(ChannelID channel, double gain) {
 
         // SetRelays control command for gain relays
         ControlSetRelays *controlSetRelays = modifyCommand<ControlSetRelays>(ControlCode::CONTROL_SETRELAYS);
-        controlSetRelays->setBelow1V(channel, gainID < 3);
-        controlSetRelays->setBelow100mV(channel, gainID < 6);
+        if (device->getModel()->ID == ModelDSO2250::ID) {
+            // DSO-2250: conforme o driver oficial (SDK2250.dll), o relé "1 V" fica ativo de 10 mV a 500 mV
+            // e o relé "100 mV" só de 10 mV a 50 mV
+            controlSetRelays->setBelow1V(channel, gainID < 6);
+            controlSetRelays->setBelow100mV(channel, gainID < 3);
+        } else {
+            controlSetRelays->setBelow1V(channel, gainID < 3);
+            controlSetRelays->setBelow100mV(channel, gainID < 6);
+        }
     }
 
     controlsettings.voltage[channel].gain = gainID;
 
     this->setOffset(channel, controlsettings.voltage[channel].offset);
 
+    return Dso::ErrorCode::NONE;
+}
+
+Dso::ErrorCode HantekDsoControl::setProbe(ChannelID channel, double probe) {
+    if (channel >= specification->channels) return Dso::ErrorCode::PARAMETER;
+    if (probe <= 0.0) probe = 1.0;
+    controlsettings.voltage[channel].probe = probe;
+    if (!device->isConnected()) return Dso::ErrorCode::CONNECTION;
+    if (controlsettings.voltage[channel].requestedGain > 0.0)
+        this->setGain(channel, controlsettings.voltage[channel].requestedGain);
+    else
+        this->setTriggerLevel(channel, controlsettings.trigger.level[channel]);
     return Dso::ErrorCode::NONE;
 }
 
@@ -922,8 +954,9 @@ Dso::ErrorCode HantekDsoControl::setTriggerLevel(ChannelID channel, double level
     const unsigned gainID = controlsettings.voltage[channel].gain;
     const double offsetReal = controlsettings.voltage[channel].offsetReal;
     const double gainStep = specification->gain[gainID].gainSteps;
+    const double hwLevel = level / controlsettings.voltage[channel].probe; // level is given at the probe tip
     const unsigned short levelValue = qBound(
-        minimum, (unsigned short)(((offsetReal + level / gainStep) * (maximum - minimum) + 0.5) + minimum), maximum);
+        minimum, (unsigned short)(((offsetReal + hwLevel / gainStep) * (maximum - minimum) + 0.5) + minimum), maximum);
 
     // Check if the set channel is the trigger source
     if (!controlsettings.trigger.special && channel == controlsettings.trigger.source) {

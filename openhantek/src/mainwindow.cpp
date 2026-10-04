@@ -2,6 +2,7 @@
 #include "iconfont/QtAwesome.h"
 #include "ui_mainwindow.h"
 
+#include "FrontPanelDock.h"
 #include "HorizontalDock.h"
 #include "SpectrumDock.h"
 #include "TriggerDock.h"
@@ -89,6 +90,16 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, Expo
     // Central oszilloscope widget
     dsoWidget = new DsoWidget(&mSettings->scope, &mSettings->view, spec);
     setCentralWidget(dsoWidget);
+
+    // Painel frontal estilo osciloscópio; as janelas antigas ficam agrupadas em abas
+    frontPanel = new FrontPanelDock(scope, spec, dsoControl, voltageDock, horizontalDock, triggerDock, dsoWidget,
+                                    ui->actionSampling, mSettings->view.screen.voltage, this);
+    addDockWidget(Qt::RightDockWidgetArea, frontPanel);
+    tabifyDockWidget(horizontalDock, triggerDock);
+    tabifyDockWidget(horizontalDock, voltageDock);
+    tabifyDockWidget(horizontalDock, spectrumDock);
+    horizontalDock->raise();
+    ui->menuView->addAction(frontPanel->toggleViewAction());
 
     // Command field inside the status bar
     QLineEdit *commandEdit = new QLineEdit(this);
@@ -305,7 +316,10 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, Expo
 
 MainWindow::~MainWindow() { delete ui; }
 
-void MainWindow::showNewData(std::shared_ptr<PPresult> data) { dsoWidget->showNew(data); }
+void MainWindow::showNewData(std::shared_ptr<PPresult> data) {
+    dsoWidget->showNew(data);
+    if (frontPanel) frontPanel->showData(data);
+}
 
 void MainWindow::exporterStatusChanged(const QString &exporterName, const QString &status) {
     ui->statusbar->showMessage(tr("%1: %2").arg(exporterName).arg(status));

@@ -71,6 +71,7 @@ struct DsoSettingsScopeVoltage : public DsoSettingsScopeChannel {
     unsigned gainStepIndex = 6;       ///< The vertical resolution in V/div (default = 1.0)
     unsigned couplingOrMathIndex = 0; ///< Different index: coupling for real- and mode for math-channels
     bool inverted = false;            ///< true if the channel is inverted (mirrored on cross-axis)
+    double probe = 1.0;               ///< Probe attenuation (1, 10, 50, 100)
 };
 
 /// \brief Holds the settings for the oscilloscope.
@@ -82,7 +83,10 @@ struct DsoSettingsScope {
     DsoSettingsScopeHorizontal horizontal;                          ///< Settings for the horizontal axis
     DsoSettingsScopeTrigger trigger;                                ///< Settings for the trigger
 
-    double gain(unsigned channel) const { return gainSteps[voltage[channel].gainStepIndex]; }
+    /// Display gain in V/div at the probe tip (hardware gain step x probe attenuation)
+    double gain(unsigned channel) const { return gainSteps[voltage[channel].gainStepIndex] * voltage[channel].probe; }
+    /// Gain step without probe attenuation
+    double hwGain(unsigned channel) const { return gainSteps[voltage[channel].gainStepIndex]; }
     bool anyUsed(ChannelID channel) { return voltage[channel].used | spectrum[channel].used; }
 
     Dso::Coupling coupling(ChannelID channel, const Dso::ControlSpecification *deviceSpecification) const {

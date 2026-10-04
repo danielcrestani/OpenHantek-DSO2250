@@ -7,6 +7,7 @@
 #include <QLabel>
 #include <QSignalBlocker>
 
+#include <algorithm>
 #include <cmath>
 
 #include "TriggerDock.h"
@@ -114,3 +115,18 @@ void TriggerDock::setSource(bool special, unsigned int id) {
     QSignalBlocker blocker(sourceComboBox);
     sourceComboBox->setCurrentIndex(index);
 }
+
+void TriggerDock::selectMode(Dso::TriggerMode mode) {
+    auto it = std::find(mSpec->triggerModes.begin(), mSpec->triggerModes.end(), mode);
+    if (it == mSpec->triggerModes.end()) return;
+    modeComboBox->setCurrentIndex((int)(it - mSpec->triggerModes.begin()));
+}
+
+void TriggerDock::selectSource(bool special, unsigned int id) {
+    int index = (int)id;
+    if (special) index += sourceStandardStrings.count();
+    if (index < 0 || index >= sourceComboBox->count()) return;
+    sourceComboBox->setCurrentIndex(index);
+}
+
+void TriggerDock::selectSlope(Dso::Slope slope) { slopeComboBox->setCurrentIndex((int)slope); }

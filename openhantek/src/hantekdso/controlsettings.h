@@ -44,6 +44,8 @@ struct ControlSettingsVoltage {
     double offset = 0.0;     ///< The screen offset for each channel
     double offsetReal = 0.0; ///< The real offset for each channel (Due to quantization)
     unsigned gain = 0;       ///< The gain id
+    double probe = 1.0;      ///< Probe attenuation
+    double requestedGain = 0.0; ///< Last requested gain at the probe tip (V per screen)
     bool used = false;       ///< true, if the channel is used
 };
 

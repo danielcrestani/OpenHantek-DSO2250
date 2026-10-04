@@ -42,6 +42,11 @@ class TriggerDock : public QDockWidget {
     /// \param slope The trigger slope.
     void setSlope(Dso::Slope slope);
 
+    /// Select values as if the user changed the widgets (signals are emitted)
+    void selectMode(Dso::TriggerMode mode);
+    void selectSource(bool special, unsigned int id);
+    void selectSlope(Dso::Slope slope);
+
   protected:
     void closeEvent(QCloseEvent *event);
 
