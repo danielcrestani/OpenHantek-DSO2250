@@ -44,6 +44,7 @@ struct DsoSettingsView {
     bool zoom = false;                                                ///< true if the magnified scope is enabled
     Qt::ToolBarArea cursorGridPosition = Qt::RightToolBarArea;
     bool cursorsVisible = false;
+    bool cursorTable = false; ///< show the side table of the cursors
 
     unsigned digitalPhosphorDraws() const {
         return digitalPhosphor ? digitalPhosphorDepth : 1;

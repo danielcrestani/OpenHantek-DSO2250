@@ -41,6 +41,11 @@ MeasurementBar::MeasurementBar(const DsoSettingsScope *scope, const Dso::Control
         labels.push_back(l);
     }
 
+    cursorLabel = new QLabel();
+    cursorLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    cursorLabel->setVisible(false);
+    layout->addWidget(cursorLabel);
+
     // Menu: Medições > CH1 / CH2 > (lista)
     measMenu = new QMenu(tr("&Medições"), parent);
     QSettings settings;
@@ -274,4 +279,18 @@ MeasurementBar::Result MeasurementBar::analyze(const std::vector<double> &v, dou
     if (rN) r.v[RISE] = rSum / rN;
     if (fN) r.v[FALL] = fSum / fN;
     return r;
+}
+
+void MeasurementBar::setCursorText(const QString &text, const QColor &color) {
+    if (text.isEmpty()) {
+        cursorLabel->setVisible(false);
+        return;
+    }
+    QColor c = color;
+    c.setAlpha(255);
+    cursorLabel->setStyleSheet(
+        QString("QLabel { color: %1; font-family: monospace; font-size: 10pt; border-top: 1px solid #333; }")
+            .arg(c.name()));
+    cursorLabel->setText(text);
+    cursorLabel->setVisible(true);
 }

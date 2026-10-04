@@ -158,6 +158,7 @@ DsoWidget::DsoWidget(DsoSettingsScope *scope, DsoSettingsView *view, const Dso::
     cursorDataGrid->selectItem(0);
 
     connect(cursorDataGrid, &DataGrid::itemSelected, [this] (unsigned index) {
+        currentCursor = index;
         mainScope->cursorSelected(index);
         zoomScope->cursorSelected(index);
     });
@@ -260,8 +261,14 @@ void DsoWidget::updateCursorGrid(bool enabled) {
     if (!enabled) {
         cursorDataGrid->selectItem(0);
         cursorDataGrid->setParent(nullptr);
+        currentCursor = 0;
         mainScope->cursorSelected(0);
         zoomScope->cursorSelected(0);
+        return;
+    }
+    if (!view->cursorTable) {
+        // cursors on, side table hidden (the readout is in the footer)
+        if (cursorDataGrid->parent() != nullptr) cursorDataGrid->setParent(nullptr);
         return;
     }
 
@@ -772,4 +779,60 @@ void DsoWidget::updateMarker(int marker, double value) {
 void DsoWidget::refreshScopes() {
     mainScope->update();
     zoomScope->update();
+}
+
+// ---------------------------------------------------------------- cursors
+DsoSettingsScopeCursor *DsoWidget::cursorAt(unsigned index) {
+    if (index == 0) return &scope->horizontal.cursor;
+    --index;
+    if (index < scope->voltage.size()) return &scope->voltage[index].cursor;
+    index -= (unsigned)scope->voltage.size();
+    if (index < scope->spectrum.size()) return &scope->spectrum[index].cursor;
+    return nullptr;
+}
+
+void DsoWidget::selectCursor(unsigned index) {
+    if (index >= cursorCount()) return;
+    currentCursor = index;
+    cursorDataGrid->selectItem(index);
+    mainScope->cursorSelected(index);
+    zoomScope->cursorSelected(index);
+    updateMarkerDetails();
+    refreshScopes();
+}
+
+void DsoWidget::setCursorShape(unsigned index, DsoSettingsScopeCursor::CursorShape shape) {
+    DsoSettingsScopeCursor *c = cursorAt(index);
+    if (!c || index == 0) return; // the zoom markers are always vertical
+    c->shape = shape;
+    updateMarkerDetails();
+    mainScope->updateCursor(index);
+    zoomScope->updateCursor(index);
+    refreshScopes();
+}
+
+void DsoWidget::setCursorPositions(unsigned index, const QPointF &p0, const QPointF &p1) {
+    DsoSettingsScopeCursor *c = cursorAt(index);
+    if (!c) return;
+    auto clampPoint = [](const QPointF &p) {
+        return QPointF(std::max(-DIVS_TIME / 2.0, std::min(DIVS_TIME / 2.0, p.x())),
+                       std::max(-DIVS_VOLTAGE / 2.0, std::min(DIVS_VOLTAGE / 2.0, p.y())));
+    };
+    c->pos[0] = clampPoint(p0);
+    c->pos[1] = clampPoint(p1);
+    if (index == 0) {
+        for (unsigned m = 0; m < MARKER_COUNT; ++m) {
+            mainSliders.markerSlider->setValue((int)m, c->pos[m].x());
+            updateMarker((int)m, c->pos[m].x());
+        }
+    }
+    updateMarkerDetails();
+    mainScope->updateCursor(index);
+    zoomScope->updateCursor(index);
+    refreshScopes();
+}
+
+void DsoWidget::setCursorTableVisible(bool visible) {
+    view->cursorTable = visible;
+    updateCursorGrid(view->cursorsVisible);
 }

@@ -45,6 +45,8 @@ class MeasurementBar : public QWidget {
     QMenu *menu() const { return measMenu; }
 
     void showData(std::shared_ptr<PPresult> data);
+    /// Readout of the active cursors (empty hides the line)
+    void setCursorText(const QString &text, const QColor &color);
 
   private:
     struct Result {
@@ -65,5 +67,6 @@ class MeasurementBar : public QWidget {
     QMenu *measMenu;
     std::vector<std::vector<QAction *>> actions; ///< [channel][measurement]
     std::vector<QLabel *> labels;                ///< one line per channel
+    QLabel *cursorLabel = nullptr;
     std::vector<Result> results;
 };

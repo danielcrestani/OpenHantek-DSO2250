@@ -12,6 +12,8 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QScrollBar>
+#include <QSettings>
 #include <QSignalBlocker>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -49,46 +51,72 @@ FrontPanelDock::FrontPanelDock(DsoSettingsScope *scope, const Dso::ControlSpecif
     content->setObjectName("panelContent");
     QVBoxLayout *layout = new QVBoxLayout(content);
     mainLayout = layout;
-    layout->setContentsMargins(6, 6, 6, 6);
-    layout->setSpacing(8);
+    layout->setContentsMargins(4, 4, 4, 4);
+    layout->setSpacing(5);
 
-    layout->addWidget(makeRunBox());
-    for (ChannelID ch = 0; ch < spec->channels; ++ch) layout->addWidget(makeChannelBox(ch));
-    layout->addWidget(makeHorizontalBox());
-    layout->addWidget(makeTriggerBox());
-    layout->addWidget(makeDisplayBox());
+    layout->addWidget(makeCollapsible(makeRunBox(), "run"));
+    for (ChannelID ch = 0; ch < spec->channels; ++ch)
+        layout->addWidget(makeCollapsible(makeChannelBox(ch), QString("ch%1").arg(ch)));
+    layout->addWidget(makeCollapsible(makeHorizontalBox(), "horizontal"));
+    layout->addWidget(makeCollapsible(makeTriggerBox(), "trigger"));
+    layout->addWidget(makeCollapsible(makeDisplayBox(), "display"));
     layout->addStretch(1);
 
     content->setStyleSheet(
         "QWidget#panelContent { background: #23272e; }"
-        "QGroupBox { color: #c8ccd4; font-weight: bold; border: 1px solid #3a404a; border-radius: 6px;"
-        "  margin-top: 10px; padding: 6px 4px 4px 4px; }"
-        "QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 4px; }"
+        "QWidget#panelContent QWidget { font-size: 9pt; }"
+        "QGroupBox { color: #c8ccd4; font-weight: bold; border: 1px solid #3a404a; border-radius: 5px;"
+        "  margin-top: 8px; padding: 4px 2px 2px 2px; }"
+        "QGroupBox::title { subcontrol-origin: margin; left: 6px; padding: 0 3px; }"
+        "QGroupBox::indicator { width: 0px; height: 0px; }"
         "QLabel { color: #e6e9ee; }"
-        "QLabel[role=\"value\"] { background: #11141a; border: 1px solid #3a404a; border-radius: 4px;"
-        "  padding: 3px 6px; font-family: monospace; font-size: 11pt; }"
-        "QLabel[role=\"readout\"] { font-family: monospace; font-size: 9pt; color: #b8bec8; }"
-        "QPushButton { background: #3a404a; color: #f0f2f5; border: 1px solid #555d6a; border-radius: 5px;"
-        "  padding: 5px 8px; min-height: 22px; }"
+        "QLabel[role=\"value\"] { background: #11141a; border: 1px solid #3a404a; border-radius: 3px;"
+        "  padding: 2px 4px; font-family: monospace; font-size: 10pt; }"
+        "QLabel[role=\"readout\"] { font-family: monospace; font-size: 8pt; color: #b8bec8; }"
+        "QPushButton { background: #3a404a; color: #f0f2f5; border: 1px solid #555d6a; border-radius: 4px;"
+        "  padding: 3px 4px; min-height: 18px; }"
         "QPushButton:hover { background: #475061; }"
         "QPushButton:pressed { background: #2c3139; }"
         "QPushButton:checked { background: #2f6fbf; border-color: #5a95e0; }"
-        "QPushButton[role=\"run\"] { font-size: 12pt; font-weight: bold; min-height: 34px; }"
-        "QComboBox { background: #3a404a; color: #f0f2f5; border: 1px solid #555d6a; border-radius: 5px;"
-        "  padding: 3px 6px; }"
+        "QPushButton[role=\"run\"] { font-size: 11pt; font-weight: bold; min-height: 28px; }"
+        "QComboBox { background: #3a404a; color: #f0f2f5; border: 1px solid #555d6a; border-radius: 4px;"
+        "  padding: 2px 4px; }"
         "QComboBox QAbstractItemView { background: #2b3038; color: #f0f2f5; selection-background-color: #2f6fbf; }");
 
     QScrollArea *scroll = new QScrollArea();
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
     scroll->setWidget(content);
-    scroll->setMinimumWidth(290);
+    // Largura fixa, rolagem só na vertical
+    const int panelWidth = 262;
+    content->setFixedWidth(panelWidth);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scroll->setFixedWidth(panelWidth + scroll->verticalScrollBar()->sizeHint().width() + 2);
     setWidget(scroll);
 
     refreshTimer = new QTimer(this);
     connect(refreshTimer, &QTimer::timeout, this, &FrontPanelDock::refresh);
     refreshTimer->start(250);
     refresh();
+}
+
+/// Click on the title folds / unfolds the section; the state is remembered
+QGroupBox *FrontPanelDock::makeCollapsible(QGroupBox *box, const QString &key) {
+    const QString title = box->title();
+    box->setCheckable(true);
+    QSettings st;
+    const bool open = st.value("FrontPanel/open_" + key, true).toBool();
+    auto apply = [box, title, key](bool on) {
+        box->setTitle(QString::fromUtf8(on ? "▾ " : "▸ ") + title);
+        for (QWidget *w : box->findChildren<QWidget *>(QString(), Qt::FindDirectChildrenOnly)) w->setVisible(on);
+        QSettings s;
+        s.setValue("FrontPanel/open_" + key, on);
+    };
+    box->setChecked(open);
+    apply(open);
+    connect(box, &QGroupBox::toggled, box, apply);
+    return box;
 }
 
 QPushButton *FrontPanelDock::makeButton(const QString &text, const QString &tip, bool checkable) {
@@ -524,7 +552,7 @@ void FrontPanelDock::showData(std::shared_ptr<PPresult> data) {
         QLabel *l = fftReadouts[ch];
         if (!dc || !scope->spectrum[ch].used || !dc->specPeakValid) {
             l->setText(scope->spectrum[ch].used ? tr("%1: ---").arg(scope->spectrum[ch].name) : QString());
-            l->setVisible(scope->spectrum[ch].used);
+            l->setVisible(scope->spectrum[ch].used && (!spectrumBox || spectrumBox->isChecked()));
             continue;
         }
         QString t = tr("%1  F %2  %3 dB%4")
@@ -546,7 +574,7 @@ void FrontPanelDock::showData(std::shared_ptr<PPresult> data) {
         }
         if (hs.empty() && !dc->specHarmonics.empty()) t += tr("\n  sem harmônicos acima do ruído");
         l->setText(t);
-        l->setVisible(true);
+        l->setVisible(!spectrumBox || spectrumBox->isChecked());
     }
 }
 
@@ -667,7 +695,7 @@ void FrontPanelDock::setSpectrumControls(SpectrumDock *dock, DsoSettingsPostProc
     spectrumDock = dock;
     post = postSettings;
     if (!spectrumDock || !post || spectrumBox || !mainLayout) return;
-    spectrumBox = makeSpectrumBox();
+    spectrumBox = makeCollapsible(makeSpectrumBox(), "fft");
     mainLayout->insertWidget(std::max(0, mainLayout->count() - 1), spectrumBox); // before the stretch
     refreshSpectrum();
 }
@@ -818,10 +846,12 @@ QGroupBox *FrontPanelDock::makeSpectrumBox() {
     // Leituras: componente mais forte da faixa visível
     QLabel *hdr = new QLabel(tr("Fundamental (F) e harmônicos que se destacam:"));
     hdr->setProperty("role", "readout");
+    hdr->setWordWrap(true);
     g->addWidget(hdr, row++, 0, 1, 4);
     for (ChannelID ch = 0; ch < scope->spectrum.size(); ++ch) {
         QLabel *l = new QLabel();
         l->setProperty("role", "readout");
+        l->setWordWrap(true);
         l->setStyleSheet(QString("QLabel { color: %1; font-family: monospace; font-size: 9pt; }")
                              .arg(spectrumColor(ch).name()));
         l->setVisible(false);

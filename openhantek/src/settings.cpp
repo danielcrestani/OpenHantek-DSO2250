@@ -208,6 +208,7 @@ void DsoSettings::load() {
     if (store->contains("cursorGridPosition"))
         view.cursorGridPosition = (Qt::ToolBarArea)store->value("cursorGridPosition").toUInt();
     if (store->contains("cursorsVisible")) view.cursorsVisible = store->value("cursorsVisible").toBool();
+    if (store->contains("cursorTable")) view.cursorTable = store->value("cursorTable").toBool();
     store->endGroup();
 
     store->beginGroup("window");
@@ -336,6 +337,7 @@ void DsoSettings::save() {
     store->setValue("zoom", view.zoom);
     store->setValue("cursorGridPosition", view.cursorGridPosition);
     store->setValue("cursorsVisible", view.cursorsVisible);
+    store->setValue("cursorTable", view.cursorTable);
     store->endGroup();
 
     store->beginGroup("window");

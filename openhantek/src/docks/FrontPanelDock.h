@@ -72,6 +72,7 @@ class FrontPanelDock : public QDockWidget {
     QGroupBox *makeTriggerBox();
     QGroupBox *makeDisplayBox();
     QPushButton *makeButton(const QString &text, const QString &tip, bool checkable = false);
+    QGroupBox *makeCollapsible(QGroupBox *box, const QString &key);
 
     void refresh();
     void stepGain(ChannelID ch, int dir);

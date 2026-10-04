@@ -11,6 +11,7 @@
 #include "glscope.h"
 #include "levelslider.h"
 #include "hantekdso/controlspecification.h"
+#include "scopesettings.h"
 
 class SpectrumGenerator;
 struct DsoSettingsScope;
@@ -91,6 +92,7 @@ class DsoWidget : public QWidget {
     const Dso::ControlSpecification* spec;
 
     GlScope *mainScope;     ///< The main scope screen
+    unsigned currentCursor = 0; ///< cursor edited with the mouse
     GlScope *zoomScope;     ///< The optional magnified scope screen
 
   public:
@@ -106,6 +108,15 @@ class DsoWidget : public QWidget {
 
     /// Repaint the scope screens (e.g. after a grid color change)
     void refreshScopes();
+
+    // ---- Cursors (menu "Cursores"). Index 0 = zoom markers, then voltage channels, then spectra
+    unsigned cursorCount() const { return 1 + (unsigned)scope->voltage.size() + (unsigned)scope->spectrum.size(); }
+    unsigned selectedCursor() const { return currentCursor; }
+    DsoSettingsScopeCursor *cursorAt(unsigned index);
+    void selectCursor(unsigned index);
+    void setCursorShape(unsigned index, DsoSettingsScopeCursor::CursorShape shape);
+    void setCursorPositions(unsigned index, const QPointF &p0, const QPointF &p1);
+    void setCursorTableVisible(bool visible);
 
   public slots:
     // Horizontal axis

@@ -45,6 +45,10 @@ class MainWindow : public QMainWindow {
     FrontPanelDock *frontPanel = nullptr;
     MeasurementBar *measurementBar = nullptr;
     void applyGridContrast(int level);
+    void setupCursorMenu();
+    void positionCursorOnSignal();
+    QString cursorReadout(QColor *color) const;
+    std::shared_ptr<PPresult> lastData;
 
     // Settings used for the whole program
     DsoSettings *mSettings;
