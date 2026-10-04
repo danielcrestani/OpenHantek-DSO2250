@@ -71,7 +71,8 @@ FrontPanelDock::FrontPanelDock(DsoSettingsScope *scope, const Dso::ControlSpecif
         "QPushButton:checked { background: #2f6fbf; border-color: #5a95e0; }"
         "QPushButton[role=\"run\"] { font-size: 12pt; font-weight: bold; min-height: 34px; }"
         "QComboBox { background: #3a404a; color: #f0f2f5; border: 1px solid #555d6a; border-radius: 5px;"
-        "  padding: 3px 6px; }");
+        "  padding: 3px 6px; }"
+        "QComboBox QAbstractItemView { background: #2b3038; color: #f0f2f5; selection-background-color: #2f6fbf; }");
 
     QScrollArea *scroll = new QScrollArea();
     scroll->setWidgetResizable(true);
@@ -150,9 +151,19 @@ QGroupBox *FrontPanelDock::makeChannelBox(ChannelID ch) {
                                   .arg(channelColorCss(ch)));
     u.couplingButton = makeButton("DC", tr("Acoplamento DC / AC"));
     u.invertButton = makeButton(tr("INV"), tr("Inverter o sinal"), true);
-    u.probeBox = new QComboBox();
-    u.probeBox->setToolTip(tr("Atenuação da ponteira (igual à chave da ponteira)"));
-    for (double p : probeValues) u.probeBox->addItem(QString("x%1").arg(p));
+    u.probeGroup = new QButtonGroup(this);
+    u.probeGroup->setExclusive(true);
+    QHBoxLayout *probeRow = new QHBoxLayout();
+    probeRow->setSpacing(3);
+    for (int i = 0; i < 4; ++i) {
+        QPushButton *b = makeButton(QString("x%1").arg(probeValues[i]),
+                                    tr("Atenuação da ponteira (igual à chave da ponteira)"), true);
+        b->setStyleSheet(QString("QPushButton { padding: 4px 2px; } QPushButton:checked { background: %1; color: #000;"
+                                 " font-weight: bold; }")
+                             .arg(channelColorCss(ch)));
+        u.probeGroup->addButton(b, i);
+        probeRow->addWidget(b);
+    }
 
     QPushButton *vUp = makeButton(QString::fromUtf8("▲"), tr("Aumentar V/div (sinal menor na tela)"));
     QPushButton *vDown = makeButton(QString::fromUtf8("▼"), tr("Diminuir V/div (sinal maior na tela)"));
@@ -175,12 +186,15 @@ QGroupBox *FrontPanelDock::makeChannelBox(ChannelID ch) {
     g->addWidget(u.vdivLabel, 1, 2);
     g->addWidget(vUp, 1, 3);
     g->addWidget(new QLabel(tr("Posição")), 2, 0);
-    g->addWidget(pDown, 2, 1);
-    g->addWidget(u.posLabel, 2, 2);
-    g->addWidget(pUp, 2, 3);
+    QHBoxLayout *posRow = new QHBoxLayout();
+    posRow->setSpacing(3);
+    posRow->addWidget(pDown);
+    posRow->addWidget(u.posLabel, 1);
+    posRow->addWidget(pUp);
+    posRow->addWidget(pZero);
+    g->addLayout(posRow, 2, 1, 1, 3);
     g->addWidget(new QLabel(tr("Ponteira")), 3, 0);
-    g->addWidget(u.probeBox, 3, 1, 1, 2);
-    g->addWidget(pZero, 3, 3);
+    g->addLayout(probeRow, 3, 1, 1, 3);
     g->setColumnStretch(2, 1);
 
     connect(u.onButton, &QPushButton::clicked, [this, ch](bool checked) { voltageDock->selectUsed(ch, checked); });
@@ -196,7 +210,7 @@ QGroupBox *FrontPanelDock::makeChannelBox(ChannelID ch) {
     connect(pUp, &QPushButton::clicked, [this, ch]() { stepOffset(ch, +0.25); });
     connect(pDown, &QPushButton::clicked, [this, ch]() { stepOffset(ch, -0.25); });
     connect(pZero, &QPushButton::clicked, [this, ch]() { stepOffset(ch, -scope->voltage[ch].offset); });
-    connect(u.probeBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::activated), [this, ch](int index) {
+    connect(u.probeGroup, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), [this, ch](int index) {
         if (index >= 0 && index < 4) changeProbe(ch, probeValues[index]);
     });
     return box;
@@ -471,7 +485,10 @@ void FrontPanelDock::refresh() {
         u.vdivLabel->setText(valueToString(scope->gain(ch), UNIT_VOLTS, 3) + "/div");
         u.posLabel->setText(QString("%1 div").arg(v.offset, 0, 'f', 2));
         for (int i = 0; i < 4; ++i)
-            if (probeValues[i] == v.probe && u.probeBox->currentIndex() != i) u.probeBox->setCurrentIndex(i);
+            if (probeValues[i] == v.probe) {
+                QAbstractButton *b = u.probeGroup->button(i);
+                if (b && !b->isChecked()) b->setChecked(true);
+            }
 
     }
 

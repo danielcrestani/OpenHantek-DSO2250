@@ -48,7 +48,7 @@ class FrontPanelDock : public QDockWidget {
         QPushButton *onButton = nullptr;
         QPushButton *couplingButton = nullptr;
         QPushButton *invertButton = nullptr;
-        QComboBox *probeBox = nullptr;
+        QButtonGroup *probeGroup = nullptr;
         QLabel *vdivLabel = nullptr;
         QLabel *posLabel = nullptr;
     };
