@@ -45,6 +45,8 @@ class FrontPanelDock : public QDockWidget {
     void setGridContrastLevel(int level);
     /// View settings (used for the interpolation button)
     void setViewSettings(DsoSettingsView *view);
+    /// RUN/STOP, SINGLE, AUTOSET, FORCE: goes to the main toolbar (header)
+    QWidget *acquisitionBar() const { return acqBar; }
     /// Adds the FFT (spectrum analyzer) controls
     void setSpectrumControls(SpectrumDock *dock, DsoSettingsPostProcessing *post);
 
@@ -67,7 +69,8 @@ class FrontPanelDock : public QDockWidget {
     };
 
     QGroupBox *makeChannelBox(ChannelID ch);
-    QGroupBox *makeRunBox();
+    QWidget *makeAcquisitionBar();
+    QWidget *acqBar = nullptr;
     QGroupBox *makeHorizontalBox();
     QGroupBox *makeTriggerBox();
     QGroupBox *makeDisplayBox();

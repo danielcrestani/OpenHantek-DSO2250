@@ -42,7 +42,7 @@ anyway, ignore it
 DsoConfigDialog::DsoConfigDialog(DsoSettings *settings, QWidget *parent, Qt::WindowFlags flags)
     : QDialog(parent, flags), settings(settings) {
 
-    this->setWindowTitle(tr("Settings"));
+    this->setWindowTitle(tr("Configurações"));
 
     this->contentsWidget = new QListWidget;
     this->contentsWidget->setViewMode(QListView::IconMode);
@@ -54,20 +54,19 @@ DsoConfigDialog::DsoConfigDialog(DsoSettings *settings, QWidget *parent, Qt::Win
     this->contentsWidget->setMinimumWidth(CONFIG_LIST_WIDTH);
     this->contentsWidget->setMinimumHeight(CONFIG_LIST_ITEMHEIGHT * 3 + 2 * (this->contentsWidget->frameWidth()));
 
-    this->analysisPage = new DsoConfigAnalysisPage(settings);
+    // "Analysis" e "Scope" saíram: janela FFT, referência, interpolação e cursores ficam no painel e nos menus
+    this->analysisPage = nullptr;
     this->colorsPage = new DsoConfigColorsPage(settings);
     this->filesPage = new DsoConfigFilesPage(settings);
-    this->scopePage = new DsoConfigScopePage(settings);
+    this->scopePage = nullptr;
     this->pagesWidget = new QStackedWidget;
-    this->pagesWidget->addWidget(this->analysisPage);
     this->pagesWidget->addWidget(this->colorsPage);
     this->pagesWidget->addWidget(this->filesPage);
-    this->pagesWidget->addWidget(this->scopePage);
 
-    this->acceptButton = new QPushButton(tr("&Ok"));
+    this->acceptButton = new QPushButton(tr("&OK"));
     this->acceptButton->setDefault(true);
-    this->applyButton = new QPushButton(tr("&Apply"));
-    this->rejectButton = new QPushButton(tr("&Cancel"));
+    this->applyButton = new QPushButton(tr("A&plicar"));
+    this->rejectButton = new QPushButton(tr("&Cancelar"));
 
     this->createIcons();
     this->contentsWidget->setCurrentRow(0);
@@ -100,21 +99,13 @@ DsoConfigDialog::~DsoConfigDialog() {}
 
 /// \brief Create the icons for the pages.
 void DsoConfigDialog::createIcons() {
-    QListWidgetItem *analysisButton = new QListWidgetItem(contentsWidget);
-    analysisButton->setIcon(QIcon(":config/analysis.png"));
-    analysisButton->setText(tr("Analysis"));
-
     QListWidgetItem *colorsButton = new QListWidgetItem(contentsWidget);
     colorsButton->setIcon(QIcon(":config/colors.png"));
-    colorsButton->setText(tr("Colors"));
+    colorsButton->setText(tr("Cores"));
 
     QListWidgetItem *filesButton = new QListWidgetItem(contentsWidget);
     filesButton->setIcon(QIcon(":config/files.png"));
-    filesButton->setText(tr("Files"));
-
-    QListWidgetItem *scopeButton = new QListWidgetItem(contentsWidget);
-    scopeButton->setIcon(QIcon(":config/scope.png"));
-    scopeButton->setText(tr("Scope"));
+    filesButton->setText(tr("Arquivos"));
 
     connect(contentsWidget, &QListWidget::currentItemChanged, this,
             &DsoConfigDialog::changePage);
@@ -129,10 +120,10 @@ void DsoConfigDialog::accept() {
 
 /// \brief Saves the settings.
 void DsoConfigDialog::apply() {
-    this->analysisPage->saveSettings();
+    if (this->analysisPage) this->analysisPage->saveSettings();
     this->colorsPage->saveSettings();
     this->filesPage->saveSettings();
-    this->scopePage->saveSettings();
+    if (this->scopePage) this->scopePage->saveSettings();
 }
 
 /// \brief Change the config page.

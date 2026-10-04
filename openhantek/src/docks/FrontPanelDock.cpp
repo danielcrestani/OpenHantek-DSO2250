@@ -54,7 +54,7 @@ FrontPanelDock::FrontPanelDock(DsoSettingsScope *scope, const Dso::ControlSpecif
     layout->setContentsMargins(4, 4, 4, 4);
     layout->setSpacing(5);
 
-    layout->addWidget(makeCollapsible(makeRunBox(), "run"));
+    acqBar = makeAcquisitionBar(); // vai para a barra de ferramentas do topo
     for (ChannelID ch = 0; ch < spec->channels; ++ch)
         layout->addWidget(makeCollapsible(makeChannelBox(ch), QString("ch%1").arg(ch)));
     layout->addWidget(makeCollapsible(makeHorizontalBox(), "horizontal"));
@@ -134,28 +134,29 @@ QString FrontPanelDock::channelColorCss(ChannelID ch) const {
 }
 
 // ---------------------------------------------------------------- RUN / STOP
-QGroupBox *FrontPanelDock::makeRunBox() {
-    QGroupBox *box = new QGroupBox(tr("Aquisição"));
-    QGridLayout *g = new QGridLayout(box);
+QWidget *FrontPanelDock::makeAcquisitionBar() {
+    QWidget *bar = new QWidget();
+    bar->setObjectName("acqBar");
+    QHBoxLayout *h = new QHBoxLayout(bar);
+    h->setContentsMargins(6, 1, 6, 1);
+    h->setSpacing(4);
 
     runButton = makeButton(tr("RUN"), tr("Iniciar / parar a aquisição"));
-    runButton->setProperty("role", "run");
+    runButton->setMinimumWidth(84);
     singleButton = makeButton(tr("SINGLE"), tr("Captura única: espera um disparo e para"));
-    singleButton->setProperty("role", "run");
     QPushButton *autoButton = makeButton(tr("AUTOSET"), tr("Ajusta V/div, tempo/div e trigger ao sinal"));
-    autoButton->setProperty("role", "run");
     QPushButton *forceButton = makeButton(tr("FORCE"), tr("Força um disparo agora"));
-
-    g->addWidget(runButton, 0, 0);
-    g->addWidget(singleButton, 0, 1);
-    g->addWidget(autoButton, 1, 0);
-    g->addWidget(forceButton, 1, 1);
+    for (QPushButton *b : {runButton, singleButton, autoButton, forceButton}) h->addWidget(b);
+    bar->setStyleSheet("QWidget#acqBar QPushButton { background: #3a404a; color: #f0f2f5; border: 1px solid #555d6a;"
+                       "  border-radius: 4px; padding: 3px 10px; font-weight: bold; min-height: 20px; }"
+                       "QWidget#acqBar QPushButton:hover { background: #475061; }"
+                       "QWidget#acqBar QPushButton:pressed { background: #2c3139; }");
 
     connect(runButton, &QPushButton::clicked, this, &FrontPanelDock::runStop);
     connect(singleButton, &QPushButton::clicked, this, &FrontPanelDock::single);
     connect(autoButton, &QPushButton::clicked, this, &FrontPanelDock::autoset);
     connect(forceButton, &QPushButton::clicked, [this]() { dsoControl->forceTrigger(); });
-    return box;
+    return bar;
 }
 
 void FrontPanelDock::runStop() {

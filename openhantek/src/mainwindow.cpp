@@ -130,6 +130,9 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, Expo
     frontPanel = new FrontPanelDock(scope, spec, dsoControl, voltageDock, horizontalDock, triggerDock, dsoWidget,
                                     ui->actionSampling, mSettings->view.screen.voltage, this);
     addDockWidget(Qt::RightDockWidgetArea, frontPanel);
+    // RUN/STOP, SINGLE, AUTOSET, FORCE no cabeçalho (substituem o botão play da barra)
+    ui->toolBar->insertWidget(ui->actionSampling, frontPanel->acquisitionBar());
+    ui->toolBar->removeAction(ui->actionSampling);
     tabifyDockWidget(horizontalDock, triggerDock);
     tabifyDockWidget(horizontalDock, voltageDock);
     tabifyDockWidget(horizontalDock, spectrumDock);
