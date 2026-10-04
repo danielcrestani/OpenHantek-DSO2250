@@ -50,7 +50,15 @@ const QColor ColorBox::getColor() { return this->color; }
 void ColorBox::setColor(QColor color) {
     this->color = color;
     this->setText(QString("#%1").arg((unsigned int)this->color.rgba(), 8, 16, QChar('0')));
-    this->setPalette(QPalette(this->color));
+    // stylesheet instead of palette: GTK-like styles ignore the button palette
+    const QColor fg = (this->color.alpha() < 110 || this->color.lightness() > 140) ? Qt::black : Qt::white;
+    this->setStyleSheet(QString("QPushButton { background-color: rgba(%1,%2,%3,%4); color: %5; border: 1px solid #777;"
+                                " border-radius: 3px; padding: 3px 8px; }")
+                            .arg(this->color.red())
+                            .arg(this->color.green())
+                            .arg(this->color.blue())
+                            .arg(this->color.alpha())
+                            .arg(fg.name()));
 
     emit colorChanged(this->color);
 }

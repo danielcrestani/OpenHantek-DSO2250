@@ -836,3 +836,38 @@ void DsoWidget::setCursorTableVisible(bool visible) {
     view->cursorTable = visible;
     updateCursorGrid(view->cursorsVisible);
 }
+
+void DsoWidget::applyColors() {
+    QPalette pal = palette();
+    pal.setColor(QPalette::Background, view->screen.background);
+    pal.setColor(QPalette::Window, view->screen.background);
+    pal.setColor(QPalette::WindowText, view->screen.text);
+    setPalette(pal);
+    for (QLabel *l : findChildren<QLabel *>()) l->setPalette(pal);
+    const ChannelID nv = (ChannelID)scope->voltage.size();
+    for (ChannelID ch = 0; ch < nv; ++ch) {
+        QPalette tp = pal;
+        tp.setColor(QPalette::WindowText, view->screen.voltage[ch]);
+        if (ch < measurementNameLabel.size()) measurementNameLabel[ch]->setPalette(tp);
+        if (ch < measurementMiscLabel.size()) measurementMiscLabel[ch]->setPalette(tp);
+        if (ch < measurementGainLabel.size()) measurementGainLabel[ch]->setPalette(tp);
+        tp.setColor(QPalette::WindowText, view->screen.spectrum[ch]);
+        if (ch < measurementMagnitudeLabel.size()) measurementMagnitudeLabel[ch]->setPalette(tp);
+    }
+    for (Sliders *s : {&mainSliders, &zoomSliders}) {
+        for (ChannelID ch = 0; ch < nv; ++ch) {
+            s->offsetSlider->setColor(ch, view->screen.voltage[ch]);
+            s->offsetSlider->setColor(nv + ch, view->screen.spectrum[ch]);
+        }
+    }
+    cursorDataGrid->setBackgroundColor(view->screen.background);
+    cursorDataGrid->configureItem(0, view->screen.text);
+    for (ChannelID ch = 0; ch < nv; ++ch) {
+        cursorDataGrid->configureItem(1 + ch, view->screen.voltage[ch]);
+        cursorDataGrid->configureItem(1 + nv + ch, view->screen.spectrum[ch]);
+    }
+    updateTriggerSource(); // trigger sliders and label in the channel color
+    updateTriggerDetails();
+    update();
+    refreshScopes();
+}

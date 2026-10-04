@@ -294,3 +294,12 @@ void MeasurementBar::setCursorText(const QString &text, const QColor &color) {
     cursorLabel->setText(text);
     cursorLabel->setVisible(true);
 }
+
+void MeasurementBar::setChannelColors(const std::vector<QColor> &channelColors) {
+    colors = channelColors;
+    for (ChannelID ch = 0; ch < labels.size(); ++ch) {
+        QColor c = ch < colors.size() ? colors[ch] : QColor(Qt::white);
+        c.setAlpha(255);
+        labels[ch]->setStyleSheet(QString("QLabel { color: %1; font-family: monospace; font-size: 10pt; }").arg(c.name()));
+    }
+}

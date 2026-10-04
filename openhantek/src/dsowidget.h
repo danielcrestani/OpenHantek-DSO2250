@@ -117,6 +117,8 @@ class DsoWidget : public QWidget {
     void setCursorShape(unsigned index, DsoSettingsScopeCursor::CursorShape shape);
     void setCursorPositions(unsigned index, const QPointF &p0, const QPointF &p1);
     void setCursorTableVisible(bool visible);
+    /// Re-apply the screen colors after the configuration dialog
+    void applyColors();
 
   public slots:
     // Horizontal axis

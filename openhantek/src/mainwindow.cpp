@@ -322,6 +322,17 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, Expo
 
         DsoConfigDialog *configDialog = new DsoConfigDialog(this->mSettings, this);
         configDialog->setModal(true);
+        configDialog->setAttribute(Qt::WA_DeleteOnClose);
+        // OK / Aplicar: cores, grade, interpolação e fósforo valem na hora
+        connect(configDialog, &DsoConfigDialog::applied, this, [this]() {
+            dsoWidget->applyColors();
+            if (measurementBar) measurementBar->setChannelColors(mSettings->view.screen.voltage);
+            if (frontPanel) frontPanel->setChannelColors(mSettings->view.screen.voltage);
+            if (ui->actionDigital_phosphor->isChecked() != mSettings->view.digitalPhosphor)
+                ui->actionDigital_phosphor->setChecked(mSettings->view.digitalPhosphor);
+            dsoWidget->updateCursorGrid(mSettings->view.cursorsVisible);
+            dsoWidget->refreshScopes();
+        });
         configDialog->show();
     });
 

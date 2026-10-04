@@ -45,6 +45,8 @@ class FrontPanelDock : public QDockWidget {
     void setGridContrastLevel(int level);
     /// View settings (used for the interpolation button)
     void setViewSettings(DsoSettingsView *view);
+    /// Colors changed in the configuration dialog
+    void setChannelColors(const std::vector<QColor> &channelColors);
     /// RUN/STOP, SINGLE, AUTOSET, FORCE: goes to the main toolbar (header)
     QWidget *acquisitionBar() const { return acqBar; }
     /// Adds the FFT (spectrum analyzer) controls
@@ -55,6 +57,7 @@ class FrontPanelDock : public QDockWidget {
 
   private:
     struct ChannelUi {
+        QGroupBox *box = nullptr;
         QPushButton *onButton = nullptr;
         QPushButton *couplingButton = nullptr;
         QPushButton *invertButton = nullptr;
@@ -87,6 +90,7 @@ class FrontPanelDock : public QDockWidget {
     void runStop();
     void single();
     QString channelColorCss(ChannelID ch) const;
+    void styleChannel(ChannelID ch);
 
     DsoSettingsScope *scope;
     const Dso::ControlSpecification *spec;

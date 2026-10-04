@@ -33,6 +33,83 @@ anyway, ignore it
 
 #include "settings.h"
 
+#include <QCheckBox>
+#include <QComboBox>
+#include <QFormLayout>
+#include <QGroupBox>
+#include <QLabel>
+#include <QSpinBox>
+
+/// \brief "Tela": grid contrast, trace interpolation, digital phosphor, cursor table side
+class DsoConfigScreenPage : public QWidget {
+  public:
+    explicit DsoConfigScreenPage(DsoSettings *settings, QWidget *parent = nullptr) : QWidget(parent), settings(settings) {
+        QVBoxLayout *main = new QVBoxLayout(this);
+
+        QGroupBox *gridBox = new QGroupBox(QStringLiteral("Grade"));
+        QFormLayout *gf = new QFormLayout(gridBox);
+        gridCombo = new QComboBox();
+        gridCombo->addItems({QStringLiteral("Normal"), QString::fromUtf8("Média"), QStringLiteral("Alta")});
+        const int a = settings->view.screen.grid.alpha();
+        initialGrid = a <= 0x40 ? 0 : (a <= 0xa0 ? 1 : 2);
+        gridCombo->setCurrentIndex(initialGrid);
+        gf->addRow(QStringLiteral("Contraste da grade"), gridCombo);
+        main->addWidget(gridBox);
+
+        QGroupBox *traceBox = new QGroupBox(QString::fromUtf8("Traço"));
+        QFormLayout *tf = new QFormLayout(traceBox);
+        interpCombo = new QComboBox();
+        interpCombo->addItem(QString::fromUtf8("sen(x)/x (suave, como osciloscópio de bancada)"), Dso::INTERPOLATION_SINC);
+        interpCombo->addItem(QStringLiteral("Linear"), Dso::INTERPOLATION_LINEAR);
+        interpCombo->addItem(QStringLiteral("Somente pontos"), Dso::INTERPOLATION_OFF);
+        interpCombo->setCurrentIndex(interpCombo->findData(settings->view.interpolation));
+        tf->addRow(QString::fromUtf8("Interpolação"), interpCombo);
+        phosphorCheck = new QCheckBox(QString::fromUtf8("Ligado"));
+        phosphorCheck->setChecked(settings->view.digitalPhosphor);
+        tf->addRow(QString::fromUtf8("Fósforo digital"), phosphorCheck);
+        phosphorDepth = new QSpinBox();
+        phosphorDepth->setRange(2, 99);
+        phosphorDepth->setValue((int)settings->view.digitalPhosphorDepth);
+        phosphorDepth->setSuffix(QString::fromUtf8(" aquisições"));
+        tf->addRow(QString::fromUtf8("Persistência"), phosphorDepth);
+        main->addWidget(traceBox);
+
+        QGroupBox *curBox = new QGroupBox(QStringLiteral("Cursores"));
+        QFormLayout *cf = new QFormLayout(curBox);
+        cursorSide = new QComboBox();
+        cursorSide->addItem(QStringLiteral("Esquerda"), Qt::LeftToolBarArea);
+        cursorSide->addItem(QStringLiteral("Direita"), Qt::RightToolBarArea);
+        cursorSide->setCurrentIndex(settings->view.cursorGridPosition == Qt::LeftToolBarArea ? 0 : 1);
+        cf->addRow(QStringLiteral("Lado da tabela lateral"), cursorSide);
+        main->addWidget(curBox);
+        main->addStretch(1);
+    }
+
+    void saveSettings() {
+        static const int gridAlpha[] = {0x3f, 0xa0, 0xff};
+        static const int axesAlpha[] = {0x7f, 0xc0, 0xff};
+        const int level = gridCombo->currentIndex();
+        if (level != initialGrid && level >= 0 && level < 3) {
+            settings->view.screen.grid.setAlpha(gridAlpha[level]);
+            settings->view.screen.axes.setAlpha(axesAlpha[level]);
+            initialGrid = level;
+        }
+        settings->view.interpolation = (Dso::InterpolationMode)interpCombo->currentData().toInt();
+        settings->view.digitalPhosphor = phosphorCheck->isChecked();
+        settings->view.digitalPhosphorDepth = (unsigned)phosphorDepth->value();
+        settings->view.cursorGridPosition = (Qt::ToolBarArea)cursorSide->currentData().toInt();
+    }
+
+  private:
+    DsoSettings *settings;
+    QComboBox *gridCombo;
+    QComboBox *interpCombo;
+    QCheckBox *phosphorCheck;
+    QSpinBox *phosphorDepth;
+    QComboBox *cursorSide;
+    int initialGrid = 0;
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 // class DsoConfigDialog
 /// \brief Creates the configuration dialog and sets initial values.
@@ -59,7 +136,9 @@ DsoConfigDialog::DsoConfigDialog(DsoSettings *settings, QWidget *parent, Qt::Win
     this->colorsPage = new DsoConfigColorsPage(settings);
     this->filesPage = new DsoConfigFilesPage(settings);
     this->scopePage = nullptr;
+    this->screenPage = new DsoConfigScreenPage(settings);
     this->pagesWidget = new QStackedWidget;
+    this->pagesWidget->addWidget(this->screenPage);
     this->pagesWidget->addWidget(this->colorsPage);
     this->pagesWidget->addWidget(this->filesPage);
 
@@ -99,6 +178,10 @@ DsoConfigDialog::~DsoConfigDialog() {}
 
 /// \brief Create the icons for the pages.
 void DsoConfigDialog::createIcons() {
+    QListWidgetItem *screenButton = new QListWidgetItem(contentsWidget);
+    screenButton->setIcon(QIcon(":config/scope.png"));
+    screenButton->setText(tr("Tela"));
+
     QListWidgetItem *colorsButton = new QListWidgetItem(contentsWidget);
     colorsButton->setIcon(QIcon(":config/colors.png"));
     colorsButton->setText(tr("Cores"));
@@ -124,6 +207,8 @@ void DsoConfigDialog::apply() {
     this->colorsPage->saveSettings();
     this->filesPage->saveSettings();
     if (this->scopePage) this->scopePage->saveSettings();
+    this->screenPage->saveSettings();
+    emit applied();
 }
 
 /// \brief Change the config page.

@@ -6,6 +6,7 @@ class DsoConfigAnalysisPage;
 class DsoConfigColorsPage;
 class DsoConfigFilesPage;
 class DsoConfigScopePage;
+class DsoConfigScreenPage;
 class DsoSettings;
 
 class QHBoxLayout;
@@ -31,6 +32,9 @@ class DsoConfigDialog : public QDialog {
 
     void changePage(QListWidgetItem *current, QListWidgetItem *previous);
 
+  signals:
+    void applied(); ///< settings were written, the main window must refresh
+
   private:
     void createIcons();
 
@@ -47,6 +51,7 @@ class DsoConfigDialog : public QDialog {
     DsoConfigColorsPage *colorsPage;
     DsoConfigFilesPage *filesPage;
     DsoConfigScopePage *scopePage;
+    DsoConfigScreenPage *screenPage;
 
     QPushButton *acceptButton, *applyButton, *rejectButton;
 };

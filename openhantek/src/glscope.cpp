@@ -455,6 +455,8 @@ void GlScope::paintGL() {
 
     // Clear OpenGL buffer and configure settings
     // TODO Don't clear if view->digitalPhosphorDraws()>1
+    const QColor bg = view->screen.background; // read every frame: color changes apply at once
+    gl->glClearColor((GLfloat)bg.redF(), (GLfloat)bg.greenF(), (GLfloat)bg.blueF(), (GLfloat)bg.alphaF());
     gl->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     gl->glLineWidth(1);
 

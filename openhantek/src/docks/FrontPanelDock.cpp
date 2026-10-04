@@ -59,7 +59,7 @@ FrontPanelDock::FrontPanelDock(DsoSettingsScope *scope, const Dso::ControlSpecif
         layout->addWidget(makeCollapsible(makeChannelBox(ch), QString("ch%1").arg(ch)));
     layout->addWidget(makeCollapsible(makeHorizontalBox(), "horizontal"));
     layout->addWidget(makeCollapsible(makeTriggerBox(), "trigger"));
-    layout->addWidget(makeCollapsible(makeDisplayBox(), "display"));
+    // "Tela" (grade e interpolação) foi para Osciloscópio > Configurações > Tela
     layout->addStretch(1);
 
     content->setStyleSheet(
@@ -178,6 +178,7 @@ QGroupBox *FrontPanelDock::makeChannelBox(ChannelID ch) {
     box->setStyleSheet(QString("QGroupBox { color: %1; border-color: %1; }").arg(channelColorCss(ch)));
     QGridLayout *g = new QGridLayout(box);
     ChannelUi &u = channelUi[ch];
+    u.box = box;
 
     u.onButton = makeButton(tr("LIGADO"), tr("Liga/desliga o canal"), true);
     u.onButton->setStyleSheet(QString("QPushButton:checked { background: %1; color: #000; font-weight: bold; }")
@@ -959,4 +960,34 @@ void FrontPanelDock::autoSpectrum(ChannelID ch, const DataChannel *dc) {
     ++post->spectrumReset;
     Q_UNUSED(ch);
     refresh();
+}
+
+// ---------------------------------------------------------------- colors
+void FrontPanelDock::styleChannel(ChannelID ch) {
+    if (ch >= channelUi.size()) return;
+    ChannelUi &u = channelUi[ch];
+    const QString col = channelColorCss(ch);
+    if (u.box) u.box->setStyleSheet(QString("QGroupBox { color: %1; border-color: %1; }").arg(col));
+    if (u.onButton)
+        u.onButton->setStyleSheet(
+            QString("QPushButton:checked { background: %1; color: #000; font-weight: bold; }").arg(col));
+    if (u.probeGroup)
+        for (QAbstractButton *b : u.probeGroup->buttons())
+            b->setStyleSheet(QString("QPushButton { padding: 4px 2px; } QPushButton:checked { background: %1; color: #000;"
+                                     " font-weight: bold; }")
+                                 .arg(col));
+}
+
+void FrontPanelDock::setChannelColors(const std::vector<QColor> &channelColors) {
+    colors = channelColors;
+    for (ChannelID ch = 0; ch < channelUi.size(); ++ch) styleChannel(ch);
+    for (ChannelID ch = 0; ch < fftOnButtons.size(); ++ch) {
+        const QString col = spectrumColor(ch).name();
+        fftOnButtons[ch]->setStyleSheet(
+            QString("QPushButton { color: %1; } QPushButton:checked { background: %1; color: #000000; border-color: %1; }")
+                .arg(col));
+    }
+    for (ChannelID ch = 0; ch < fftReadouts.size(); ++ch)
+        fftReadouts[ch]->setStyleSheet(
+            QString("QLabel { color: %1; font-family: monospace; font-size: 9pt; }").arg(spectrumColor(ch).name()));
 }

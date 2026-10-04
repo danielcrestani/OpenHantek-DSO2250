@@ -47,6 +47,7 @@ class MeasurementBar : public QWidget {
     void showData(std::shared_ptr<PPresult> data);
     /// Readout of the active cursors (empty hides the line)
     void setCursorText(const QString &text, const QColor &color);
+    void setChannelColors(const std::vector<QColor> &channelColors);
 
   private:
     struct Result {
