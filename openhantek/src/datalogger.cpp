@@ -79,7 +79,9 @@ QString DataLogger::num(double v, int prec) const {
         l.setNumberOptions(QLocale::OmitGroupSeparator);
         return l;
     }();
-    return br.toString(v, 'g', prec);
+    // between quotes: the decimal comma never splits the value, even if the spreadsheet import has
+    // "comma" ticked as a separator; quoted numbers are still read as numbers
+    return QStringLiteral("\"") + br.toString(v, 'g', prec) + QStringLiteral("\"");
 }
 
 void DataLogger::start() {
@@ -145,8 +147,8 @@ bool DataLogger::openFiles() {
         const QString sensor =
             v.sensor < probeSensors().size() ? QString::fromUtf8(probeSensors()[v.sensor].label) : QString("x%1").arg(v.probe);
         *t << "# OpenHantek DSO-2250 - registro do CH" << (ch + 1) << "\n";
-        *t << "# inicio: " << QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss") << "; ponteira/garra: " << sensor
-           << "; unidade: " << u << "; " << u << "/div: " << num(scope->gain(ch), 4) << "\n";
+        *t << "# inicio:;" << QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss") << ";ponteira/garra:;" << sensor
+           << ";unidade:;" << u << ";" << u << "/div:;" << num(scope->gain(ch), 4) << "\n";
         if (cfg.content == MEASUREMENTS) {
             *t << "data_hora";
             for (int i = 0; i < names.size(); ++i) {
