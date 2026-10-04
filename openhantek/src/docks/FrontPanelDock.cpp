@@ -307,6 +307,7 @@ void FrontPanelDock::changeProbe(ChannelID ch, unsigned sensor) {
 // ---------------------------------------------------------------- HORIZONTAL
 QGroupBox *FrontPanelDock::makeHorizontalBox() {
     QGroupBox *box = new QGroupBox(tr("Horizontal"));
+    box->setStyleSheet("QGroupBox { color: #3fb8e0; border-color: #3fb8e0; }"); // azul
     QGridLayout *g = new QGridLayout(box);
 
     QPushButton *tFaster = makeButton(QString::fromUtf8("◀"), tr("Menos tempo por divisão (ampliar)"));
@@ -359,6 +360,7 @@ QGroupBox *FrontPanelDock::makeHorizontalBox() {
 // ---------------------------------------------------------------- TRIGGER
 QGroupBox *FrontPanelDock::makeTriggerBox() {
     QGroupBox *box = new QGroupBox(tr("Trigger"));
+    box->setStyleSheet("QGroupBox { color: #f08c2e; border-color: #f08c2e; }"); // laranja
     QGridLayout *g = new QGridLayout(box);
 
     // modo
@@ -704,6 +706,7 @@ void FrontPanelDock::setSpectrumControls(SpectrumDock *dock, DsoSettingsPostProc
 
 QGroupBox *FrontPanelDock::makeSpectrumBox() {
     QGroupBox *box = new QGroupBox(tr("FFT (analisador de espectro)"));
+    box->setStyleSheet("QGroupBox { color: #b07cff; border-color: #b07cff; }"); // violeta
     QGridLayout *g = new QGridLayout(box);
     int row = 0;
 

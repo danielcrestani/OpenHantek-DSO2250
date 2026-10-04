@@ -14,8 +14,7 @@
 #include "dockwindows.h"
 #include "dsomodel.h"
 #include "dsowidget.h"
-#include "exporting/exporterinterface.h"
-#include "exporting/exporterregistry.h"
+#include "datalogger.h"
 #include "hantekdsocontrol.h"
 #include "usb/usbdevice.h"
 #include "viewconstants.h"
@@ -29,13 +28,17 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QTimer>
+#include <QToolButton>
+#include <QClipboard>
+#include <QGuiApplication>
+#include <QStandardPaths>
+#include <QDateTime>
 
 #include <algorithm>
 #include <cmath>
 
-MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, ExporterRegistry *exporterRegistry,
-                       QWidget *parent)
-    : QMainWindow(parent), ui(new Ui::MainWindow), mSettings(settings), exporterRegistry(exporterRegistry) {
+MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, QWidget *parent)
+    : QMainWindow(parent), ui(new Ui::MainWindow), mSettings(settings) {
     ui->setupUi(this);
     ui->actionSave->setIcon(iconFont->icon(fa::save));
     ui->actionAbout->setIcon(iconFont->icon(fa::questioncircle));
@@ -79,18 +82,10 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, Expo
     setDockOptions(dockOptions() | QMainWindow::GroupedDragging);
 #endif
 
-    for (auto *exporter : *exporterRegistry) {
-        QAction *action = new QAction(exporter->icon(), exporter->name(), this);
-        action->setCheckable(exporter->type() == ExporterInterface::Type::ContinousExport);
-        connect(action, &QAction::triggered, [exporter, exporterRegistry](bool checked) {
-            exporterRegistry->setExporterEnabled(
-                exporter, exporter->type() == ExporterInterface::Type::ContinousExport ? checked : true);
-        });
-        ui->menuExport->addAction(action);
-    }
 
     DsoSettingsScope *scope = &(mSettings->scope);
     const Dso::ControlSpecification *spec = dsoControl->getDevice()->getModel()->spec();
+    deviceSpec = spec;
 
     registerDockMetaTypes();
 
@@ -370,6 +365,7 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, Expo
     });
     ui->actionCursors->setChecked(mSettings->view.cursorsVisible);
     setupCursorMenu();
+    setupExportAndLog();
 
     connect(ui->actionAbout, &QAction::triggered, [this]() {
         QMessageBox::about(
@@ -397,6 +393,7 @@ MainWindow::~MainWindow() { delete ui; }
 
 void MainWindow::showNewData(std::shared_ptr<PPresult> data) {
     lastData = data;
+    if (logger) logger->process(data);
     dsoWidget->showNew(data);
     if (frontPanel) frontPanel->showData(data);
     if (measurementBar) measurementBar->showData(data);
@@ -416,11 +413,7 @@ void MainWindow::applyGridContrast(int level) {
     dsoWidget->refreshScopes();
 }
 
-void MainWindow::exporterStatusChanged(const QString &exporterName, const QString &status) {
-    ui->statusbar->showMessage(tr("%1: %2").arg(exporterName).arg(status));
-}
 
-void MainWindow::exporterProgressChanged() { exporterRegistry->checkForWaitingExporters(); }
 
 /// \brief Save the settings before exiting.
 /// \param event The close event that should be handled.
@@ -648,4 +641,87 @@ void MainWindow::positionCursorOnSignal() {
     };
     if (c->shape == DsoSettingsScopeCursor::NONE) dsoWidget->setCursorShape(sel, DsoSettingsScopeCursor::RECTANGULAR);
     dsoWidget->setCursorPositions(sel, QPointF(xOf(f.freq), yOf(f.binDb)), QPointF(xOf(h.freq), yOf(h.binDb)));
+}
+
+// ---------------------------------------------------------------- exportar imagem / registro de dados
+void MainWindow::setupExportAndLog() {
+    // Exportar: só imagem do que está na tela (tela + rodapé de medições), como um print do osciloscópio
+    QAction *img = ui->menuExport->addAction(iconFont->icon(fa::image), tr("Imagem da tela (PNG/JPG)..."));
+    img->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_E));
+    connect(img, &QAction::triggered, this, &MainWindow::exportScreenImage);
+    QAction *copy = ui->menuExport->addAction(tr("Copiar imagem da tela"));
+    copy->setShortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_C));
+    connect(copy, &QAction::triggered, [this]() {
+        QGuiApplication::clipboard()->setPixmap(centralWidget()->grab());
+        statusBar()->showMessage(tr("Imagem da tela copiada"), 3000);
+    });
+
+    // Registro de dados por canal
+    logger = new DataLogger(&mSettings->scope, deviceSpec, this);
+    QAction *logAction = new QAction(tr("Registro de dados (log)..."), this);
+    logAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_L));
+    connect(logAction, &QAction::triggered, [this]() { logger->showDialog(this); });
+    ui->menuFile->insertAction(ui->actionExit, logAction);
+    ui->menuFile->insertSeparator(ui->actionExit);
+
+    recButton = new QToolButton(this);
+    recButton->setPopupMode(QToolButton::MenuButtonPopup);
+    QMenu *recMenu = new QMenu(recButton);
+    recMenu->addAction(logAction);
+    recButton->setMenu(recMenu);
+    recButton->setToolTip(tr("Registro de dados: clique para iniciar/parar.\nSeta: configurar (canais, início manual ou por trigger, pasta)."));
+    connect(recButton, &QToolButton::clicked, [this]() {
+        if (logger->state() == DataLogger::State::Idle)
+            logger->start();
+        else
+            logger->stop();
+    });
+    ui->toolBar->addWidget(recButton);
+    connect(logger, &DataLogger::stateChanged, this, &MainWindow::updateRecButton);
+    updateRecButton();
+}
+
+void MainWindow::updateRecButton() {
+    if (!recButton || !logger) return;
+    switch (logger->state()) {
+    case DataLogger::State::Idle:
+        recButton->setText(QString::fromUtf8("● REG"));
+        recButton->setStyleSheet("QToolButton { color: #c03030; font-weight: bold; padding: 3px 8px; }");
+        break;
+    case DataLogger::State::Armed:
+        recButton->setText(QString::fromUtf8("◌ ARMADO"));
+        recButton->setStyleSheet("QToolButton { background: #d08a10; color: #000; font-weight: bold; padding: 3px 8px;"
+                                 " border-radius: 4px; }");
+        break;
+    case DataLogger::State::Recording:
+        recButton->setText(QString::fromUtf8("● GRAVANDO"));
+        recButton->setStyleSheet("QToolButton { background: #c02020; color: #fff; font-weight: bold; padding: 3px 8px;"
+                                 " border-radius: 4px; }");
+        break;
+    }
+    const QString st = logger->statusText();
+    if (st.startsWith(tr("Erro"))) statusBar()->showMessage(st, 8000);
+}
+
+void MainWindow::exportScreenImage() {
+    const QPixmap pm = centralWidget()->grab();
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+    const QString suggestion =
+        dir + "/" + QString("osciloscopio_%1.png").arg(QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss"));
+    QString selected;
+    QString fileName = QFileDialog::getSaveFileName(this, tr("Exportar imagem da tela"), suggestion,
+                                                    tr("PNG (*.png);;JPEG (*.jpg *.jpeg);;BMP (*.bmp)"), &selected);
+    if (fileName.isEmpty()) return;
+    if (QFileInfo(fileName).suffix().isEmpty()) {
+        if (selected.startsWith("JPEG"))
+            fileName += ".jpg";
+        else if (selected.startsWith("BMP"))
+            fileName += ".bmp";
+        else
+            fileName += ".png";
+    }
+    if (pm.save(fileName, nullptr, 95))
+        statusBar()->showMessage(tr("Imagem salva: %1").arg(fileName), 5000);
+    else
+        statusBar()->showMessage(tr("Não foi possível salvar %1").arg(fileName), 8000);
 }

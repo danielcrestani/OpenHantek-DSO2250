@@ -49,15 +49,18 @@ class MeasurementBar : public QWidget {
     void setCursorText(const QString &text, const QColor &color);
     void setChannelColors(const std::vector<QColor> &channelColors);
 
-  private:
     struct Result {
         bool valid = false;
         double v[COUNT];
     };
+    /// Measurements of one record (also used by the data logger)
+    static Result analyze(const std::vector<double> &samples, double interval, double fallbackFreq);
+
+  private:
     static QString name(int m);
     static QString shortName(int m);
     static QString format(int m, double value, Unit unit = UNIT_VOLTS);
-    static Result analyze(const std::vector<double> &samples, double interval, double fallbackFreq);
+
     void updateLabels();
     void saveSelection();
     bool selected(ChannelID ch, int m) const;

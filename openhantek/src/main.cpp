@@ -27,12 +27,6 @@
 #include "post/postprocessing.h"
 #include "post/spectrumgenerator.h"
 
-// Exporter
-#include "exporting/exportcsv.h"
-#include "exporting/exporterprocessor.h"
-#include "exporting/exporterregistry.h"
-#include "exporting/exportimage.h"
-#include "exporting/exportprint.h"
 
 // GUI
 #include "iconfont/QtAwesome.h"
@@ -152,19 +146,6 @@ int main(int argc, char *argv[]) {
     //////// Create settings object ////////
     DsoSettings settings(device->getModel()->spec());
 
-    //////// Create exporters ////////
-    ExporterRegistry exportRegistry(device->getModel()->spec(), &settings);
-
-    ExporterCSV exporterCSV;
-    ExporterImage exportImage;
-    ExporterPrint exportPrint;
-
-    ExporterProcessor samplesToExportRaw(&exportRegistry);
-
-    exportRegistry.registerExporter(&exporterCSV);
-    exportRegistry.registerExporter(&exportImage);
-    exportRegistry.registerExporter(&exportPrint);
-
     //////// Create post processing objects ////////
     QThread postProcessingThread;
     postProcessingThread.setObjectName("postProcessingThread");
@@ -176,25 +157,18 @@ int main(int argc, char *argv[]) {
     graphGenerator.setInterpolation(&settings.view.interpolation);
     graphGenerator.setPostProcessing(&settings.post);
 
-    postProcessing.registerProcessor(&samplesToExportRaw);
     postProcessing.registerProcessor(&mathchannelGenerator);
     postProcessing.registerProcessor(&spectrumGenerator);
     postProcessing.registerProcessor(&graphGenerator);
 
     postProcessing.moveToThread(&postProcessingThread);
     QObject::connect(&dsoControl, &HantekDsoControl::samplesAvailable, &postProcessing, &PostProcessing::input);
-    QObject::connect(&postProcessing, &PostProcessing::processingFinished, &exportRegistry, &ExporterRegistry::input,
-                     Qt::DirectConnection);
 
     //////// Create main window ////////
     iconFont->initFontAwesome();
-    MainWindow openHantekMainWindow(&dsoControl, &settings, &exportRegistry);
+    MainWindow openHantekMainWindow(&dsoControl, &settings);
     QObject::connect(&postProcessing, &PostProcessing::processingFinished, &openHantekMainWindow,
                      &MainWindow::showNewData);
-    QObject::connect(&exportRegistry, &ExporterRegistry::exporterProgressChanged, &openHantekMainWindow,
-                     &MainWindow::exporterProgressChanged);
-    QObject::connect(&exportRegistry, &ExporterRegistry::exporterStatusChanged, &openHantekMainWindow,
-                     &MainWindow::exporterStatusChanged);
     openHantekMainWindow.show();
 
     applySettingsToDevice(&dsoControl, &settings.scope, device->getModel()->spec());

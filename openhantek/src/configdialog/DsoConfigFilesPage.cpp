@@ -26,6 +26,7 @@ DsoConfigFilesPage::DsoConfigFilesPage(DsoSettings *settings, QWidget *parent) :
     exportLayout->addWidget(imageHeightSpinBox, 2, 1);
 
     exportGroup = new QGroupBox(tr("Export"));
+    exportGroup->setVisible(false); // a exportação agora é a imagem da tela (Exportar > Imagem da tela)
     exportGroup->setLayout(exportLayout);
 
     // Configuration group
