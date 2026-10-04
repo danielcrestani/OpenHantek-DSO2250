@@ -2,6 +2,8 @@
 
 #include "DsoConfigColorsPage.h"
 
+#include <vector>
+
 DsoConfigColorsPage::DsoConfigColorsPage(DsoSettings *settings, QWidget *parent) : QWidget(parent), settings(settings) {
     // Initialize elements
     DsoSettingsView &colorSettings = settings->view;
@@ -12,39 +14,39 @@ DsoConfigColorsPage::DsoConfigColorsPage(DsoSettings *settings, QWidget *parent)
     graphLabel->setAlignment(Qt::AlignRight);
     graphLabel->setTextFormat(Qt::RichText);
 
-    screenColorsLabel = new QLabel(tr("Screen"));
+    screenColorsLabel = new QLabel(tr("Tela"));
     screenColorsLabel->setAlignment(Qt::AlignHCenter);
     printColorsLabel = new QLabel(tr("Print"));
     printColorsLabel->setAlignment(Qt::AlignHCenter);
 
-    axesLabel = new QLabel(tr("Axes"));
+    axesLabel = new QLabel(tr("Eixos"));
     axesColorBox = new ColorBox(colorSettings.screen.axes);
     printAxesColorBox = new ColorBox(colorSettings.print.axes);
 
-    backgroundLabel = new QLabel(tr("Background"));
+    backgroundLabel = new QLabel(tr("Fundo"));
     backgroundColorBox = new ColorBox(colorSettings.screen.background);
     printBackgroundColorBox = new ColorBox(colorSettings.print.background);
 
-    borderLabel = new QLabel(tr("Border"));
+    borderLabel = new QLabel(tr("Borda"));
     borderColorBox = new ColorBox(colorSettings.screen.border);
     printBorderColorBox = new ColorBox(colorSettings.print.border);
 
-    gridLabel = new QLabel(tr("Grid"));
+    gridLabel = new QLabel(tr("Grade"));
     gridColorBox = new ColorBox(colorSettings.screen.grid);
     printGridColorBox = new ColorBox(colorSettings.print.grid);
 
-    markersLabel = new QLabel(tr("Markers"));
+    markersLabel = new QLabel(tr("Marcadores"));
     markersColorBox = new ColorBox(colorSettings.screen.markers);
     printMarkersColorBox = new ColorBox(colorSettings.print.markers);
 
-    textLabel = new QLabel(tr("Text"));
+    textLabel = new QLabel(tr("Texto"));
     textColorBox = new ColorBox(colorSettings.screen.text);
     printTextColorBox = new ColorBox(colorSettings.print.text);
 
     // Graph category
-    screenChannelLabel = new QLabel(tr("Channel"));
+    screenChannelLabel = new QLabel(tr("Canal"));
     screenChannelLabel->setAlignment(Qt::AlignHCenter);
-    screenSpectrumLabel = new QLabel(tr("Spectrum"));
+    screenSpectrumLabel = new QLabel(tr("Espectro (FFT)"));
     screenSpectrumLabel->setAlignment(Qt::AlignHCenter);
     printChannelLabel = new QLabel(tr("Channel"));
     printChannelLabel->setAlignment(Qt::AlignHCenter);
@@ -114,7 +116,17 @@ DsoConfigColorsPage::DsoConfigColorsPage(DsoSettings *settings, QWidget *parent)
         colorsLayout->addWidget(printSpectrumColorBox[channel], row, COL_PRT_SPECTRUM);
     }
 
-    colorsGroup = new QGroupBox(tr("Screen and Print Colors"));
+    // Print colors are only for exported images with "print" colors: hidden here, defaults kept
+    for (QWidget *w : std::vector<QWidget *>{printColorsLabel, printBackgroundColorBox, printGridColorBox,
+                                             printAxesColorBox, printBorderColorBox, printMarkersColorBox,
+                                             printTextColorBox, printChannelLabel, printSpectrumLabel})
+        w->setVisible(false);
+    for (ChannelID channel = 0; channel < settings->scope.voltage.size(); ++channel) {
+        printChannelColorBox[channel]->setVisible(false);
+        printSpectrumColorBox[channel]->setVisible(false);
+    }
+
+    colorsGroup = new QGroupBox(tr("Cores da tela"));
     colorsGroup->setLayout(colorsLayout);
 
     // Main layout

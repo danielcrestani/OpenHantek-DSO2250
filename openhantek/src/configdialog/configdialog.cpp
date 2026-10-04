@@ -64,14 +64,12 @@ class DsoConfigScreenPage : public QWidget {
         interpCombo->addItem(QStringLiteral("Somente pontos"), Dso::INTERPOLATION_OFF);
         interpCombo->setCurrentIndex(interpCombo->findData(settings->view.interpolation));
         tf->addRow(QString::fromUtf8("Interpolação"), interpCombo);
-        phosphorCheck = new QCheckBox(QString::fromUtf8("Ligado"));
-        phosphorCheck->setChecked(settings->view.digitalPhosphor);
-        tf->addRow(QString::fromUtf8("Fósforo digital"), phosphorCheck);
         phosphorDepth = new QSpinBox();
         phosphorDepth->setRange(2, 99);
         phosphorDepth->setValue((int)settings->view.digitalPhosphorDepth);
         phosphorDepth->setSuffix(QString::fromUtf8(" aquisições"));
-        tf->addRow(QString::fromUtf8("Persistência"), phosphorDepth);
+        phosphorDepth->setToolTip(QString::fromUtf8("Usada quando o fósforo digital está ligado (botão na barra)"));
+        tf->addRow(QString::fromUtf8("Persistência do fósforo"), phosphorDepth);
         main->addWidget(traceBox);
 
         QGroupBox *curBox = new QGroupBox(QStringLiteral("Cursores"));
@@ -95,7 +93,6 @@ class DsoConfigScreenPage : public QWidget {
             initialGrid = level;
         }
         settings->view.interpolation = (Dso::InterpolationMode)interpCombo->currentData().toInt();
-        settings->view.digitalPhosphor = phosphorCheck->isChecked();
         settings->view.digitalPhosphorDepth = (unsigned)phosphorDepth->value();
         settings->view.cursorGridPosition = (Qt::ToolBarArea)cursorSide->currentData().toInt();
     }
@@ -104,7 +101,6 @@ class DsoConfigScreenPage : public QWidget {
     DsoSettings *settings;
     QComboBox *gridCombo;
     QComboBox *interpCombo;
-    QCheckBox *phosphorCheck;
     QSpinBox *phosphorDepth;
     QComboBox *cursorSide;
     int initialGrid = 0;
