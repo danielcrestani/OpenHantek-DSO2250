@@ -688,6 +688,7 @@ Dso::ErrorCode HantekDsoControl::setRecordTime(double duration) {
 
         // What is the nearest, at most as high samplerate the scope can provide?
         unsigned downsampler = 0;
+        getBestSamplerate(maxSamplerate, fastRate, true, &downsampler);
 
         // Set the calculated samplerate
         if (this->updateSamplerate(downsampler, fastRate) == UINT_MAX)
