@@ -68,7 +68,11 @@ void ColorBox::waitForColor() {
     this->setFocus();
     this->setDown(true);
 
-    QColor color = QColorDialog::getColor(this->color, this, 0, QColorDialog::ShowAlphaChannel);
+    // Qt's own dialog (not the GTK one), parented to the window that holds the button: the native chooser
+    // on Pop!_OS opened hidden behind the modal settings window and froze the program.
+    QColor color = QColorDialog::getColor(this->color, this->window(), tr("Escolher cor"),
+                                          QColorDialog::ShowAlphaChannel | QColorDialog::DontUseNativeDialog);
+    this->setDown(false);
 
     if (color.isValid()) this->setColor(color);
 }
