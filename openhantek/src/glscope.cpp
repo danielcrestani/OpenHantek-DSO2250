@@ -64,6 +64,62 @@ GlScope::GlScope(DsoSettingsScope *scope, DsoSettingsView *view, QWidget *parent
         cursorInfo.push_back(&scope->spectrum[channel].cursor);
     }
     vaMarker.resize(cursorInfo.size());
+
+    markerOverlay = new SpectrumMarkerOverlay(this);
+    markerOverlay->setGeometry(rect());
+}
+
+void GlScope::resizeEvent(QResizeEvent *event) {
+    QOpenGLWidget::resizeEvent(event);
+    if (markerOverlay) markerOverlay->setGeometry(rect());
+}
+
+// ---------------------------------------------------------------- spectrum markers
+SpectrumMarkerOverlay::SpectrumMarkerOverlay(QWidget *parent) : QWidget(parent) {
+    setAttribute(Qt::WA_TransparentForMouseEvents);
+    setAttribute(Qt::WA_NoSystemBackground);
+    setAttribute(Qt::WA_TranslucentBackground);
+}
+
+void SpectrumMarkerOverlay::setMarkers(const std::vector<std::vector<PPresult::SpectrumMarker>> &m,
+                                       const std::vector<QColor> &c) {
+    markers = m;
+    colors = c;
+    update();
+}
+
+void SpectrumMarkerOverlay::paintEvent(QPaintEvent *) {
+    bool any = false;
+    for (const auto &ch : markers) any = any || !ch.empty();
+    if (!any) return;
+
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing, true);
+    QFont f = font();
+    f.setPointSizeF(8.5);
+    f.setBold(true);
+    p.setFont(f);
+    const double W = width(), H = height();
+    for (size_t ch = 0; ch < markers.size(); ++ch) {
+        QColor col = ch < colors.size() ? colors[ch] : QColor(Qt::white);
+        col.setAlpha(255);
+        p.setPen(QPen(col, 1.5));
+        for (const PPresult::SpectrumMarker &m : markers[ch]) {
+            const double px = (m.x + DIVS_TIME / 2) / DIVS_TIME * W;
+            const double py = (DIVS_VOLTAGE / 2 - m.y) / DIVS_VOLTAGE * H;
+            const QString txt = m.n == 1 ? QStringLiteral("F") : QString::number(m.n);
+            if (py < 30) {
+                // close to the top: chevron pointing up, text below the peak
+                p.drawLine(QPointF(px - 4, py + 10), QPointF(px, py + 4));
+                p.drawLine(QPointF(px + 4, py + 10), QPointF(px, py + 4));
+                p.drawText(QRectF(px - 20, py + 11, 40, 14), Qt::AlignCenter, txt);
+            } else {
+                p.drawLine(QPointF(px - 4, py - 10), QPointF(px, py - 4));
+                p.drawLine(QPointF(px + 4, py - 10), QPointF(px, py - 4));
+                p.drawText(QRectF(px - 20, py - 26, 40, 14), Qt::AlignCenter, txt);
+            }
+        }
+    }
 }
 
 GlScope::~GlScope() {/* virtual destructor necessary */}
@@ -276,6 +332,12 @@ void GlScope::initializeGL() {
 }
 
 void GlScope::showData(std::shared_ptr<PPresult> data) {
+    if (markerOverlay) {
+        if (!zoomed && data && scope->horizontal.format == Dso::GraphFormat::TY)
+            markerOverlay->setMarkers(data->spectrumMarkers, view->screen.spectrum);
+        else
+            markerOverlay->setMarkers({}, {});
+    }
     if (!shaderCompileSuccess) return;
     makeCurrent();
     // Remove too much entries

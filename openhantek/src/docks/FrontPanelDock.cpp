@@ -416,6 +416,9 @@ void FrontPanelDock::triggerLevelTo50() {
 
 // ---------------------------------------------------------------- AUTOSET
 void FrontPanelDock::autoset() {
+    // FFT ligada: também ajusta a escala do espectro com os próximos dados
+    for (ChannelID ch = 0; ch < fftAutoPending.size(); ++ch)
+        if (scope->spectrum[ch].used) fftAutoPending[ch] = true;
     // 1) escala vertical: sinal ocupando ~6 divisões
     for (ChannelID ch = 0; ch < spec->channels; ++ch) {
         if (!scope->voltage[ch].used || !stats[ch].valid) continue;
@@ -487,6 +490,11 @@ void FrontPanelDock::showData(std::shared_ptr<PPresult> data) {
     for (ChannelID ch = 0; ch < data->channelCount(); ++ch) {
         const DataChannel *dc = data->data(ch);
         if (dc && dc->voltage.interval > 0 && ch < spec->channels) lastSampleInterval = dc->voltage.interval;
+        if (dc && ch < fftAutoPending.size() && fftAutoPending[ch] && scope->spectrum[ch].used &&
+            !dc->spectrum.sample.empty()) {
+            fftAutoPending[ch] = false;
+            autoSpectrum(ch, dc);
+        }
         if (ch >= fftReadouts.size()) continue;
         QLabel *l = fftReadouts[ch];
         if (!dc || !scope->spectrum[ch].used || !dc->specPeakValid) {
@@ -494,11 +502,23 @@ void FrontPanelDock::showData(std::shared_ptr<PPresult> data) {
             l->setVisible(scope->spectrum[ch].used);
             continue;
         }
-        QString t = tr("%1: %2  %3 dBV")
+        QString t = tr("%1  F %2  %3 dBV")
                         .arg(scope->spectrum[ch].name)
                         .arg(valueToString(dc->specPeakFreq, UNIT_HERTZ, 5))
                         .arg(QString::number(dc->specPeakDbV, 'f', 2));
         if (dc->specThd >= 0) t += tr("  THD %1%").arg(QString::number(dc->specThd, 'f', dc->specThd < 10 ? 2 : 1));
+        // harmonics that stand out of the noise, strongest first (max. 6)
+        std::vector<SpectrumHarmonic> hs;
+        for (size_t i = 1; i < dc->specHarmonics.size(); ++i)
+            if (dc->specHarmonics[i].salient) hs.push_back(dc->specHarmonics[i]);
+        std::sort(hs.begin(), hs.end(),
+                  [](const SpectrumHarmonic &a, const SpectrumHarmonic &b) { return a.dbc > b.dbc; });
+        if (hs.size() > 6) hs.resize(6);
+        for (size_t i = 0; i < hs.size(); ++i) {
+            t += (i % 2 == 0) ? QStringLiteral("\n  ") : QStringLiteral("   ");
+            t += tr("H%1 %2 dBc").arg(hs[i].n).arg(QString::number(hs[i].dbc, 'f', 1));
+        }
+        if (hs.empty() && !dc->specHarmonics.empty()) t += tr("\n  sem harmônicos acima do ruído");
         l->setText(t);
         l->setVisible(true);
     }
@@ -642,12 +662,14 @@ QGroupBox *FrontPanelDock::makeSpectrumBox() {
                              .arg(col));
         connect(b, &QPushButton::toggled, [this, ch](bool on) {
             spectrumDock->selectUsed(ch, on);
+            if (on && ch < fftAutoPending.size()) fftAutoPending[ch] = true; // ajusta a escala com o próximo quadro
             refresh();
         });
         fftOnButtons.push_back(b);
         onRow->addWidget(b);
     }
     g->addLayout(onRow, row++, 0, 1, 4);
+    fftAutoPending.assign(scope->spectrum.size(), false);
 
     // Janela
     g->addWidget(new QLabel(tr("Janela")), row++, 0, 1, 4);
@@ -725,10 +747,26 @@ QGroupBox *FrontPanelDock::makeSpectrumBox() {
     avgButton = makeButton(tr("Média"), tr("Média de potência de várias aquisições: reduz o ruído (desl. / 4 / 16 / 64)"));
     holdButton = makeButton(tr("Ret. pico"), tr("Mantém o máximo de cada frequência (max hold)"), true);
     QPushButton *clr = makeButton(tr("Limpar"), tr("Reinicia a média e a retenção de pico"));
+    QPushButton *autoFft = makeButton(tr("AUTO FFT"), tr("Ajusta Hz/div na fundamental (harmônicos nas divisões), "
+                                                         "10 dB/div e a referência logo acima do pico"));
+    autoFft->setStyleSheet("QPushButton { font-weight: bold; }");
+    harmButton = makeButton(tr("Marcar harm."), tr("Marca na tela a fundamental (F) e os harmônicos que se destacam "
+                                                   "do ruído (2..10)"),
+                            true);
+    g->addWidget(autoFft, row, 0, 1, 2);
+    g->addWidget(harmButton, row++, 2, 1, 2);
     g->addWidget(nyq, row, 0, 1, 2);
     g->addWidget(avgButton, row++, 2, 1, 2);
     g->addWidget(holdButton, row, 0, 1, 2);
     g->addWidget(clr, row++, 2, 1, 2);
+    connect(autoFft, &QPushButton::clicked, [this]() {
+        for (ChannelID ch = 0; ch < fftAutoPending.size(); ++ch)
+            if (scope->spectrum[ch].used) fftAutoPending[ch] = true;
+    });
+    connect(harmButton, &QPushButton::toggled, [this](bool on) {
+        post->spectrumShowHarmonics = on;
+        refresh();
+    });
     connect(nyq, &QPushButton::clicked, this, &FrontPanelDock::spanToNyquist);
     connect(avgButton, &QPushButton::clicked, [this]() {
         static const unsigned seq[] = {1, 4, 16, 64};
@@ -745,7 +783,7 @@ QGroupBox *FrontPanelDock::makeSpectrumBox() {
     connect(clr, &QPushButton::clicked, [this]() { ++post->spectrumReset; });
 
     // Leituras: componente mais forte da faixa visível
-    QLabel *hdr = new QLabel(tr("Pico (maior componente na tela):"));
+    QLabel *hdr = new QLabel(tr("Fundamental (F) e harmônicos que se destacam:"));
     hdr->setProperty("role", "readout");
     g->addWidget(hdr, row++, 0, 1, 4);
     for (ChannelID ch = 0; ch < scope->spectrum.size(); ++ch) {
@@ -784,6 +822,10 @@ void FrontPanelDock::refreshSpectrum() {
     avgButton->setText(post->spectrumAverage > 1 ? tr("Média: %1x").arg(post->spectrumAverage) : tr("Média: desl."));
     avgButton->setStyleSheet(post->spectrumAverage > 1 ? "QPushButton { background: #2f6fbf; border-color: #5a95e0; }"
                                                        : QString());
+    if (harmButton->isChecked() != post->spectrumShowHarmonics) {
+        QSignalBlocker blk(harmButton);
+        harmButton->setChecked(post->spectrumShowHarmonics);
+    }
     if (holdButton->isChecked() != post->spectrumPeakHold) {
         QSignalBlocker blk(holdButton);
         holdButton->setChecked(post->spectrumPeakHold);
@@ -819,5 +861,31 @@ void FrontPanelDock::spanToNyquist() {
     double f = nextOneTwoFive(perDiv * 0.9999, +1);
     if (f / perDiv > 2.6) f = perDiv; // fallback, should not happen
     horizontalDock->selectFrequencybase(std::max(1.0, std::min(100e6, f)));
+    refresh();
+}
+
+void FrontPanelDock::autoSpectrum(ChannelID ch, const DataChannel *dc) {
+    if (!dc || dc->voltage.interval <= 0 || dc->spectrum.sample.size() < 16) return;
+    const double nyquist = 0.5 / dc->voltage.interval;
+    double f0 = dc->frequency > 0 ? dc->frequency : (dc->specPeakValid ? dc->specPeakFreq : 0.0);
+
+    // Hz/div: the 1-2-5 value closest above the fundamental -> F at ~1 div, harmonics on the next divisions
+    double fbase;
+    if (f0 > 0 && f0 * 10.0 < nyquist) {
+        fbase = nextOneTwoFive(f0 * 0.95, +1);
+    } else {
+        fbase = nextOneTwoFive(nyquist / DIVS_TIME * 0.9999, +1);
+    }
+    horizontalDock->selectFrequencybase(std::max(1.0, std::min(100e6, fbase)));
+
+    // 10 dB/div, reference just above the highest bin (ignoring DC)
+    double maxDb = -1e9;
+    const std::vector<double> &s = dc->spectrum.sample;
+    const size_t skip = std::min<size_t>(s.size() / 2, 6);
+    for (size_t k = skip; k < s.size(); ++k) maxDb = std::max(maxDb, s[k]);
+    if (maxDb > -1e8) post->spectrumReference = std::min(60.0, std::ceil((maxDb + 5.0) / 10.0) * 10.0);
+    for (ChannelID c = 0; c < scope->spectrum.size(); ++c) spectrumDock->selectMagnitude(c, 10.0);
+    ++post->spectrumReset;
+    Q_UNUSED(ch);
     refresh();
 }

@@ -150,6 +150,7 @@ void DsoSettings::load() {
     if (store->contains("spectrumRefDbV")) post.spectrumReference = store->value("spectrumRefDbV").toDouble();
     if (store->contains("spectrumAverage")) post.spectrumAverage = std::max(1u, store->value("spectrumAverage").toUInt());
     if (store->contains("spectrumPeakHold")) post.spectrumPeakHold = store->value("spectrumPeakHold").toBool();
+    if (store->contains("spectrumHarmonics")) post.spectrumShowHarmonics = store->value("spectrumHarmonics").toBool();
     if (store->contains("spectrumWindow"))
         post.spectrumWindow = (Dso::WindowFunction)store->value("spectrumWindow").toInt();
     store->endGroup();
@@ -280,6 +281,7 @@ void DsoSettings::save() {
     store->setValue("spectrumRefDbV", post.spectrumReference);
     store->setValue("spectrumAverage", post.spectrumAverage);
     store->setValue("spectrumPeakHold", post.spectrumPeakHold);
+    store->setValue("spectrumHarmonics", post.spectrumShowHarmonics);
     store->setValue("spectrumWindow", (int)post.spectrumWindow);
     store->endGroup();
 

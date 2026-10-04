@@ -122,6 +122,7 @@ void SpectrumGenerator::process(PPresult *result) {
         DataChannel *const channelData = result->modifyData(channel);
         channelData->specPeakValid = false;
         channelData->specThd = -1.0;
+        channelData->specHarmonics.clear();
 
         const size_t sampleCount = channelData->voltage.sample.size();
         if (sampleCount < 16 || channelData->voltage.interval <= 0) {
@@ -230,13 +231,25 @@ void SpectrumGenerator::process(PPresult *result) {
         }
 
         // ---- Marker: strongest component in the displayed span (window independent level) ----
-        const size_t lobe = 6; // bins summed around a peak; covers the main lobe of every window
+        // bins summed around a peak: enough for the main lobe of the selected window
+        size_t lobe;
+        switch (postprocessing->spectrumWindow) {
+        case Dso::WindowFunction::RECTANGULAR:
+        case Dso::WindowFunction::HANN:
+        case Dso::WindowFunction::HAMMING:
+        case Dso::WindowFunction::COSINE:
+        case Dso::WindowFunction::BARTLETT:
+        case Dso::WindowFunction::TRIANGULAR: lobe = 3; break;
+        case Dso::WindowFunction::FLATTOP: lobe = 6; break;
+        default: lobe = 5; break;
+        }
         size_t kEnd = bins - 1;
         if (scope->horizontal.frequencybase > 0) {
             const double spanBins = DIVS_TIME * scope->horizontal.frequencybase / binWidth;
             if (spanBins < (double)kEnd) kEnd = (size_t)spanBins;
         }
         const size_t kStart = lobe; // skip DC and its leakage
+        channelData->specHarmonics.clear();
         if (kEnd > kStart + 2) {
             size_t kp = kStart;
             for (size_t k = kStart; k <= kEnd; ++k)
@@ -249,31 +262,62 @@ void SpectrumGenerator::process(PPresult *result) {
                 for (size_t k = a; k <= b; ++k) s += P[k];
                 return s / windowEnbw; // Vrms^2 of the component
             };
+            auto toDb = [](double p) { return 10.0 * log10(std::max(p, 1e-30)); };
+            auto interpolate = [&](size_t k) {
+                if (k == 0 || k + 1 >= bins) return 0.0;
+                const double y0 = toDb(P[k - 1]), y1 = toDb(P[k]), y2 = toDb(P[k + 1]);
+                const double den = y0 - 2 * y1 + y2;
+                return (den != 0.0) ? std::max(-0.5, std::min(0.5, 0.5 * (y0 - y2) / den)) : 0.0;
+            };
 
             if (P[kp] > 0.0 && kp > 0 && kp + 1 < bins) {
-                // Parabolic interpolation on dB for the frequency
-                const double y0 = 10 * log10(std::max(P[kp - 1], 1e-30));
-                const double y1 = 10 * log10(std::max(P[kp], 1e-30));
-                const double y2 = 10 * log10(std::max(P[kp + 1], 1e-30));
-                const double den = y0 - 2 * y1 + y2;
-                const double delta = (den != 0.0) ? std::max(-0.5, std::min(0.5, 0.5 * (y0 - y2) / den)) : 0.0;
+                const double delta = interpolate(kp);
                 const double f0 = ((double)kp + delta) * binWidth;
                 const double p1 = lobePower(kp);
 
                 channelData->specPeakValid = true;
                 channelData->specPeakFreq = f0;
-                channelData->specPeakDbV = 10.0 * log10(std::max(p1, 1e-30));
+                channelData->specPeakDbV = toDb(p1);
 
-                // THD: harmonics 2..10 below Nyquist
+                // Noise in one lobe: median bin power of the span x lobe width (robust against the peaks)
+                std::vector<double> tmp(P.begin() + (long)kStart, P.begin() + (long)kEnd + 1);
+                std::nth_element(tmp.begin(), tmp.begin() + (long)(tmp.size() / 2), tmp.end());
+                const double noiseLobe = tmp[tmp.size() / 2] * (double)(2 * lobe + 1) / windowEnbw;
+
+                SpectrumHarmonic fund;
+                fund.n = 1;
+                fund.freq = f0;
+                fund.dbv = toDb(p1);
+                fund.dbc = 0.0;
+                fund.binDb = toDb(P[kp]);
+                fund.salient = true;
+                channelData->specHarmonics.push_back(fund);
+
+                // Harmonics 2..10 below Nyquist (THD) -- each one searched +-2 bins around n*f0
+                const bool separated = kp > 2 * lobe;
                 double ph = 0.0;
                 int harmonics = 0;
-                for (int h = 2; h <= 10; ++h) {
+                for (int h = 2; h <= 10 && separated; ++h) {
                     const double c = h * ((double)kp + delta);
-                    if (c + lobe >= (double)(bins - 1)) break;
-                    ph += lobePower((size_t)std::lround(c));
+                    if (c + lobe + 2 >= (double)(bins - 1)) break;
+                    size_t kh = (size_t)std::lround(c);
+                    size_t best = kh;
+                    for (size_t k = kh - 2; k <= kh + 2; ++k)
+                        if (P[k] > P[best]) best = k;
+                    const double phh = lobePower(best);
+                    ph += phh;
                     ++harmonics;
+
+                    SpectrumHarmonic hh;
+                    hh.n = h;
+                    hh.freq = ((double)best + interpolate(best)) * binWidth;
+                    hh.dbv = toDb(phh);
+                    hh.dbc = toDb(phh / p1);
+                    hh.binDb = toDb(P[best]);
+                    hh.salient = phh > 10.0 * noiseLobe; // at least 10 dB above the noise
+                    channelData->specHarmonics.push_back(hh);
                 }
-                if (kp > 2 * lobe && harmonics > 0 && p1 > 0) channelData->specThd = 100.0 * std::sqrt(ph / p1);
+                if (separated && harmonics > 0 && p1 > 0) channelData->specThd = 100.0 * std::sqrt(ph / p1);
             }
         }
     }

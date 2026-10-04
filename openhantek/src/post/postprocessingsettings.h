@@ -49,4 +49,5 @@ struct DsoSettingsPostProcessing {
     unsigned spectrumAverage = 1;  ///< Number of spectra averaged (power average, 1 = off)
     bool spectrumPeakHold = false; ///< Keep the maximum of each frequency bin
     unsigned spectrumReset = 0;    ///< Incremented to clear average / peak hold
+    bool spectrumShowHarmonics = true; ///< Mark fundamental and salient harmonics on screen
 };

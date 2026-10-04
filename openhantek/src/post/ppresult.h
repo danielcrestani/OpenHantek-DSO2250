@@ -14,6 +14,16 @@ struct SampleValues {
     double interval = 0.0;      ///< The interval between two sample values
 };
 
+/// \brief A spectral line: fundamental (n = 1) or harmonic
+struct SpectrumHarmonic {
+    int n = 1;
+    double freq = 0.0;  ///< Hz
+    double dbv = 0.0;   ///< RMS level in dBV
+    double dbc = 0.0;   ///< relative to the fundamental
+    double binDb = 0.0; ///< level of the displayed bin (position of the marker)
+    bool salient = false;
+};
+
 /// \brief Struct for the analyzed data.
 struct DataChannel {
     SampleValues voltage;   ///< The time-domain voltage levels (V)
@@ -25,6 +35,7 @@ struct DataChannel {
     double specPeakFreq = 0.0; ///< Hz (interpolated)
     double specPeakDbV = 0.0;  ///< RMS level of that component in dBV (window independent)
     double specThd = -1.0;     ///< THD in % (harmonics 2..10), <0 if not available
+    std::vector<SpectrumHarmonic> specHarmonics; ///< [0] fundamental, then harmonics 2..10
     // Calculate peak-to-peak voltage
     double computeAmplitude() const;
 };
@@ -50,6 +61,13 @@ class PPresult {
     bool softwareTriggerTriggered = false;
 
     ChannelsGraphs vaChannelSpectrum;
+    /// Spectrum markers already in screen coordinates (divs), per channel
+    struct SpectrumMarker {
+        float x = 0, y = 0;
+        int n = 1;
+        double freq = 0, dbv = 0, dbc = 0;
+    };
+    std::vector<std::vector<SpectrumMarker>> spectrumMarkers;
     ChannelsGraphs vaChannelVoltage;
   private:
     std::vector<DataChannel> analyzedData; ///< The analyzed data for each channel

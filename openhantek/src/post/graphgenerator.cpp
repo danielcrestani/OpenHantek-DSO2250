@@ -189,6 +189,7 @@ void GraphGenerator::generateGraphsTYvoltage(PPresult *result) {
 void GraphGenerator::generateGraphsTYspectrum(PPresult *result) {
     ready = true;
     result->vaChannelSpectrum.resize(scope->spectrum.size());
+    result->spectrumMarkers.assign(scope->spectrum.size(), {});
     for (ChannelID channel = 0; channel < scope->voltage.size(); ++channel) {
         ChannelGraph &target = result->vaChannelSpectrum[channel];
         const SampleValues &samples = useSpecSamplesOf(channel, result, scope);
@@ -234,6 +235,23 @@ void GraphGenerator::generateGraphsTYspectrum(PPresult *result) {
         } else {
             target.reserve(count);
             for (size_t k = 0; k < count; ++k) target.push_back(QVector3D(toX((double)k), toY(samples.sample[k]), 0.0f));
+        }
+
+        // Markers of the fundamental and of the salient harmonics (only those inside the screen)
+        if (postprocessing && postprocessing->spectrumShowHarmonics && result->data(channel) &&
+            channel < result->spectrumMarkers.size()) {
+            for (const SpectrumHarmonic &h : result->data(channel)->specHarmonics) {
+                if (!h.salient) continue;
+                PPresult::SpectrumMarker m;
+                m.x = toX(h.freq / samples.interval);
+                if (m.x < -DIVS_TIME / 2 || m.x > DIVS_TIME / 2) continue;
+                m.y = toY(std::max(h.binDb, postprocessing->spectrumLimit));
+                m.n = h.n;
+                m.freq = h.freq;
+                m.dbv = h.dbv;
+                m.dbc = h.dbc;
+                result->spectrumMarkers[channel].push_back(m);
+            }
         }
     }
 }

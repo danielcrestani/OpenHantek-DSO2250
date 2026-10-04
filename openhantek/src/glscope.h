@@ -11,6 +11,9 @@
 #include <QOpenGLShaderProgram>
 #include <QOpenGLVertexArrayObject>
 #include <QOpenGLWidget>
+#include <QColor>
+#include <QWidget>
+#include <vector>
 
 #include "glscopegraph.h"
 #include "hantekdso/enums.h"
@@ -20,6 +23,22 @@ struct DsoSettingsView;
 struct DsoSettingsScope;
 struct DsoSettingsScopeCursor;
 class PPresult;
+
+/// \brief Transparent layer over the scope that marks the fundamental (F) and the
+/// salient harmonics (2..10) of each spectrum, like a bench FFT analyzer.
+class SpectrumMarkerOverlay : public QWidget {
+  public:
+    explicit SpectrumMarkerOverlay(QWidget *parent);
+    void setMarkers(const std::vector<std::vector<PPresult::SpectrumMarker>> &markers,
+                    const std::vector<QColor> &colors);
+
+  protected:
+    void paintEvent(QPaintEvent *event) override;
+
+  private:
+    std::vector<std::vector<PPresult::SpectrumMarker>> markers;
+    std::vector<QColor> colors;
+};
 
 /// \brief OpenGL accelerated widget that displays the oscilloscope screen.
 class GlScope : public QOpenGLWidget {
@@ -62,6 +81,7 @@ class GlScope : public QOpenGLWidget {
     /// \param width The new width of the widget.
     /// \param height The new height of the widget.
     virtual void resizeGL(int width, int height) override;
+    virtual void resizeEvent(QResizeEvent *event) override;
 
     virtual void mousePressEvent(QMouseEvent *event) override;
     virtual void mouseMoveEvent(QMouseEvent *event) override;
@@ -82,6 +102,7 @@ class GlScope : public QOpenGLWidget {
     void markerMoved(unsigned cursorIndex, unsigned marker);
 
   private:
+    SpectrumMarkerOverlay *markerOverlay = nullptr;
     // User settings
     DsoSettingsScope *scope;
     DsoSettingsView *view;
