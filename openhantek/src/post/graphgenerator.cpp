@@ -44,6 +44,37 @@ void GraphGenerator::generateGraphsTYvoltage(PPresult *result) {
     result->softwareTriggerTriggered = postTrigSamples > preTrigSamples;
 
     result->vaChannelVoltage.resize(scope->voltage.size());
+
+    // Fine trigger alignment (sub-sample): the hardware trigger is only accurate to one sample, which makes
+    // fast signals jump on screen. Find the trigger-level crossing closest to the trigger position, compute
+    // its exact (interpolated) instant and shift all traces so that it lands exactly on the trigger mark.
+    double triggerShift = 0.0;
+    if (!scope->trigger.special && scope->trigger.source < scope->voltage.size() && !isSoftwareTriggerDevice) {
+        const SampleValues &src = useVoltSamplesOf(scope->trigger.source, result, scope);
+        if (src.sample.size() > 4 && src.interval > 0) {
+            const double hf = src.interval / scope->horizontal.timebase;
+            const double *d = src.sample.data();
+            const size_t n = src.sample.size();
+            size_t visible = (size_t)std::min<double>((double)n - 1, std::ceil(DIVS_TIME / hf) + 2.0);
+            const double expected = scope->trigger.position * DIVS_TIME / hf;
+            const double level = scope->voltage[scope->trigger.source].trigger;
+            const bool rising = scope->trigger.slope == Dso::Slope::Positive;
+            double best = -1.0, bestDist = 1e300;
+            for (size_t k = 0; k + 1 <= visible && k + 1 < n; ++k) {
+                const double a = d[k], b = d[k + 1];
+                const bool cross = rising ? (a < level && b >= level) : (a > level && b <= level);
+                if (!cross || b == a) continue;
+                const double t = (double)k + (level - a) / (b - a);
+                const double dist = std::fabs(t - expected);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = t;
+                }
+            }
+            if (best >= 0.0) triggerShift = expected - best;
+        }
+    }
+
     for (ChannelID channel = 0; channel < scope->voltage.size(); ++channel) {
         ChannelGraph &target = result->vaChannelVoltage[channel];
         const SampleValues &samples = useVoltSamplesOf(channel, result, scope);
@@ -68,12 +99,14 @@ void GraphGenerator::generateGraphsTYvoltage(PPresult *result) {
         const float offset = (float)scope->voltage[channel].offset;
         const float invert = scope->voltage[channel].inverted ? -1.0f : 1.0f;
         auto toY = [gain, offset, invert](double v) { return (float)v / gain * invert + offset; };
-        auto toX = [horizontalFactor](double pos) { return (float)(pos * horizontalFactor - DIVS_TIME / 2); };
+        auto toX = [horizontalFactor, triggerShift](double pos) {
+            return (float)((pos + triggerShift) * horizontalFactor - DIVS_TIME / 2);
+        };
 
         // Only the samples that fall on the screen are drawn
         size_t count = available;
         if (horizontalFactor > 0) {
-            const double visible = std::ceil(DIVS_TIME / horizontalFactor) + 2.0;
+            const double visible = std::ceil(DIVS_TIME / horizontalFactor) + 2.0 + std::fabs(triggerShift);
             if (visible < (double)count) count = (size_t)visible;
         }
 
