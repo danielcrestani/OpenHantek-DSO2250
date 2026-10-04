@@ -768,3 +768,8 @@ void DsoWidget::updateMarker(int marker, double value) {
     adaptTriggerPositionSlider();
     updateMarkerDetails();
 }
+
+void DsoWidget::refreshScopes() {
+    mainScope->update();
+    zoomScope->update();
+}

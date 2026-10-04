@@ -3,6 +3,7 @@
 #include "ui_mainwindow.h"
 
 #include "FrontPanelDock.h"
+#include "MeasurementsDock.h"
 #include "HorizontalDock.h"
 #include "SpectrumDock.h"
 #include "TriggerDock.h"
@@ -21,7 +22,9 @@
 
 #include "settings.h"
 
+#include <QActionGroup>
 #include <QFileDialog>
+#include <QMenu>
 #include <QLineEdit>
 #include <QMessageBox>
 
@@ -99,7 +102,51 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, Expo
     tabifyDockWidget(horizontalDock, voltageDock);
     tabifyDockWidget(horizontalDock, spectrumDock);
     horizontalDock->raise();
-    ui->menuView->addAction(frontPanel->toggleViewAction());
+
+    // Medições automáticas (tabela + menu próprio)
+    measurementsDock = new MeasurementsDock(scope, spec, mSettings->view.screen.voltage, this);
+    addDockWidget(Qt::RightDockWidgetArea, measurementsDock);
+    menuBar()->insertMenu(ui->menuHelp->menuAction(), measurementsDock->menu());
+
+    // View > Janelas: reabrir qualquer painel fechado
+    QMenu *windowsMenu = ui->menuView->addMenu(tr("Janelas"));
+    frontPanel->toggleViewAction()->setText(tr("Painel frontal"));
+    windowsMenu->addAction(frontPanel->toggleViewAction());
+    windowsMenu->addAction(measurementsDock->toggleViewAction());
+    windowsMenu->addSeparator();
+    windowsMenu->addAction(horizontalDock->toggleViewAction());
+    windowsMenu->addAction(triggerDock->toggleViewAction());
+    windowsMenu->addAction(voltageDock->toggleViewAction());
+    windowsMenu->addAction(spectrumDock->toggleViewAction());
+    windowsMenu->addSeparator();
+    QAction *restoreAll = windowsMenu->addAction(tr("Mostrar todas as janelas"));
+    connect(restoreAll, &QAction::triggered, [this, horizontalDock, triggerDock, voltageDock, spectrumDock]() {
+        for (QDockWidget *d : std::vector<QDockWidget *>{frontPanel, measurementsDock, horizontalDock, triggerDock,
+                                                          voltageDock, spectrumDock}) {
+            if (d->isFloating()) d->setFloating(false);
+            d->show();
+        }
+    });
+
+    // View > Contraste da grade
+    QMenu *gridMenu = ui->menuView->addMenu(tr("Contraste da grade"));
+    QActionGroup *gridGroup = new QActionGroup(this);
+    const QStringList gridNames = {tr("Normal"), tr("Média"), tr("Alta")};
+    const int alpha = mSettings->view.screen.grid.alpha();
+    const int currentLevel = alpha <= 0x40 ? 0 : (alpha <= 0xa0 ? 1 : 2);
+    for (int level = 0; level < 3; ++level) {
+        QAction *a = gridMenu->addAction(gridNames[level]);
+        a->setCheckable(true);
+        a->setChecked(level == currentLevel);
+        gridGroup->addAction(a);
+        connect(a, &QAction::triggered, [this, level]() { applyGridContrast(level); });
+    }
+    frontPanel->setGridContrastLevel(currentLevel);
+    connect(frontPanel, &FrontPanelDock::gridContrastRequested, [this, gridGroup](int level) {
+        applyGridContrast(level);
+        QList<QAction *> acts = gridGroup->actions();
+        if (level >= 0 && level < acts.size()) acts[level]->setChecked(true);
+    });
 
     // Command field inside the status bar
     QLineEdit *commandEdit = new QLineEdit(this);
@@ -319,6 +366,21 @@ MainWindow::~MainWindow() { delete ui; }
 void MainWindow::showNewData(std::shared_ptr<PPresult> data) {
     dsoWidget->showNew(data);
     if (frontPanel) frontPanel->showData(data);
+    if (measurementsDock) measurementsDock->showData(data);
+}
+
+void MainWindow::applyGridContrast(int level) {
+    static const int gridAlpha[] = {0x3f, 0xa0, 0xff};
+    static const int axesAlpha[] = {0x7f, 0xc0, 0xff};
+    if (level < 0 || level > 2) return;
+    QColor grid = mSettings->view.screen.grid;
+    grid.setAlpha(gridAlpha[level]);
+    mSettings->view.screen.grid = grid;
+    QColor axes = mSettings->view.screen.axes;
+    axes.setAlpha(axesAlpha[level]);
+    mSettings->view.screen.axes = axes;
+    if (frontPanel) frontPanel->setGridContrastLevel(level);
+    dsoWidget->refreshScopes();
 }
 
 void MainWindow::exporterStatusChanged(const QString &exporterName, const QString &status) {

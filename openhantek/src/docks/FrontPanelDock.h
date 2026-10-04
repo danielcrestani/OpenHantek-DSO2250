@@ -37,6 +37,11 @@ class FrontPanelDock : public QDockWidget {
 
     /// New data arrived: update readouts and the values used by AUTOSET / 50%
     void showData(std::shared_ptr<PPresult> data);
+    /// Show the current grid contrast level on the button (0 normal, 1 média, 2 alta)
+    void setGridContrastLevel(int level);
+
+  signals:
+    void gridContrastRequested(int level);
 
   private:
     struct ChannelUi {
@@ -46,7 +51,6 @@ class FrontPanelDock : public QDockWidget {
         QComboBox *probeBox = nullptr;
         QLabel *vdivLabel = nullptr;
         QLabel *posLabel = nullptr;
-        QLabel *readout = nullptr;
     };
     struct ChannelStats {
         bool valid = false;
@@ -57,6 +61,7 @@ class FrontPanelDock : public QDockWidget {
     QGroupBox *makeRunBox();
     QGroupBox *makeHorizontalBox();
     QGroupBox *makeTriggerBox();
+    QGroupBox *makeDisplayBox();
     QPushButton *makeButton(const QString &text, const QString &tip, bool checkable = false);
 
     void refresh();
@@ -92,4 +97,6 @@ class FrontPanelDock : public QDockWidget {
     QButtonGroup *sourceGroup = nullptr;
     QButtonGroup *slopeGroup = nullptr;
     QTimer *refreshTimer = nullptr;
+    QPushButton *gridButton = nullptr;
+    int gridLevel = 0;
 };

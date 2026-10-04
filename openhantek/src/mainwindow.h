@@ -13,6 +13,7 @@ class TriggerDock;
 class SpectrumDock;
 class VoltageDock;
 class FrontPanelDock;
+class MeasurementsDock;
 
 namespace Ui {
 class MainWindow;
@@ -42,6 +43,8 @@ class MainWindow : public QMainWindow {
     // Central widgets
     DsoWidget *dsoWidget;
     FrontPanelDock *frontPanel = nullptr;
+    MeasurementsDock *measurementsDock = nullptr;
+    void applyGridContrast(int level);
 
     // Settings used for the whole program
     DsoSettings *mSettings;

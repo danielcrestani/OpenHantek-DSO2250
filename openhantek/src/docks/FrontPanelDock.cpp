@@ -52,6 +52,7 @@ FrontPanelDock::FrontPanelDock(DsoSettingsScope *scope, const Dso::ControlSpecif
     for (ChannelID ch = 0; ch < spec->channels; ++ch) layout->addWidget(makeChannelBox(ch));
     layout->addWidget(makeHorizontalBox());
     layout->addWidget(makeTriggerBox());
+    layout->addWidget(makeDisplayBox());
     layout->addStretch(1);
 
     content->setStyleSheet(
@@ -166,10 +167,6 @@ QGroupBox *FrontPanelDock::makeChannelBox(ChannelID ch) {
     u.posLabel->setProperty("role", "value");
     u.posLabel->setAlignment(Qt::AlignCenter);
 
-    u.readout = new QLabel("-");
-    u.readout->setProperty("role", "readout");
-    u.readout->setTextInteractionFlags(Qt::TextSelectableByMouse);
-
     g->addWidget(u.onButton, 0, 0, 1, 2);
     g->addWidget(u.couplingButton, 0, 2);
     g->addWidget(u.invertButton, 0, 3);
@@ -184,7 +181,6 @@ QGroupBox *FrontPanelDock::makeChannelBox(ChannelID ch) {
     g->addWidget(new QLabel(tr("Ponteira")), 3, 0);
     g->addWidget(u.probeBox, 3, 1, 1, 2);
     g->addWidget(pZero, 3, 3);
-    g->addWidget(u.readout, 4, 0, 1, 4);
     g->setColumnStretch(2, 1);
 
     connect(u.onButton, &QPushButton::clicked, [this, ch](bool checked) { voltageDock->selectUsed(ch, checked); });
@@ -477,17 +473,6 @@ void FrontPanelDock::refresh() {
         for (int i = 0; i < 4; ++i)
             if (probeValues[i] == v.probe && u.probeBox->currentIndex() != i) u.probeBox->setCurrentIndex(i);
 
-        const ChannelStats &s = stats[ch];
-        if (v.used && s.valid) {
-            QString f = s.freq > 0 ? valueToString(s.freq, UNIT_HERTZ, 4) : QString("---");
-            QString per = s.freq > 0 ? valueToString(1.0 / s.freq, UNIT_SECONDS, 4) : QString("---");
-            const double acRms = std::sqrt(std::max(0.0, s.rms * s.rms - s.mean * s.mean));
-            u.readout->setText(QString("Vpp  %1\nVmáx %2   Vmín %3\nMédia %4   RMS %5\nAC RMS %6\nFreq %7   T %8")
-                                   .arg(fmtVolts(s.vmax - s.vmin), fmtVolts(s.vmax), fmtVolts(s.vmin),
-                                        fmtVolts(s.mean), fmtVolts(s.rms), fmtVolts(acRms), f, per));
-        } else {
-            u.readout->setText(v.used ? tr("aguardando dados…") : tr("canal desligado"));
-        }
     }
 
     timebaseLabel->setText(valueToString(scope->horizontal.timebase, UNIT_SECONDS, 3) + "/div");
@@ -503,4 +488,20 @@ void FrontPanelDock::refresh() {
         triggerLevelLabel->setText(tr("externo"));
     else if (scope->trigger.source < spec->channels)
         triggerLevelLabel->setText(fmtVolts(scope->voltage[scope->trigger.source].trigger));
+}
+
+// ---------------------------------------------------------------- TELA
+QGroupBox *FrontPanelDock::makeDisplayBox() {
+    QGroupBox *box = new QGroupBox(tr("Tela"));
+    QGridLayout *g = new QGridLayout(box);
+    gridButton = makeButton(tr("Grade: Normal"), tr("Alterna o contraste da grade (Normal / Média / Alta)"));
+    g->addWidget(gridButton, 0, 0);
+    connect(gridButton, &QPushButton::clicked, [this]() { emit gridContrastRequested((gridLevel + 1) % 3); });
+    return box;
+}
+
+void FrontPanelDock::setGridContrastLevel(int level) {
+    gridLevel = level;
+    static const char *names[] = {"Normal", "Média", "Alta"};
+    if (gridButton && level >= 0 && level < 3) gridButton->setText(tr("Grade: %1").arg(QString::fromUtf8(names[level])));
 }

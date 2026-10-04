@@ -104,6 +104,9 @@ class DsoWidget : public QWidget {
         updateTriggerPosition(0, value, true);
     }
 
+    /// Repaint the scope screens (e.g. after a grid color change)
+    void refreshScopes();
+
   public slots:
     // Horizontal axis
     // void horizontalFormatChanged(HorizontalFormat format);
