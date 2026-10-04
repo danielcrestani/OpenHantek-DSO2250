@@ -172,6 +172,7 @@ int main(int argc, char *argv[]) {
     SpectrumGenerator spectrumGenerator(&settings.scope, &settings.post);
     MathChannelGenerator mathchannelGenerator(&settings.scope, device->getModel()->spec()->channels);
     GraphGenerator graphGenerator(&settings.scope, device->getModel()->spec()->isSoftwareTriggerDevice);
+    graphGenerator.setInterpolation(&settings.view.interpolation);
 
     postProcessing.registerProcessor(&samplesToExportRaw);
     postProcessing.registerProcessor(&mathchannelGenerator);

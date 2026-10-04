@@ -25,6 +25,7 @@
 #include "hantekdsocontrol.h"
 #include "utils/printutils.h"
 #include "viewconstants.h"
+#include "viewsettings.h"
 
 static const double probeValues[] = {1.0, 10.0, 50.0, 100.0};
 
@@ -513,6 +514,19 @@ QGroupBox *FrontPanelDock::makeDisplayBox() {
     QGridLayout *g = new QGridLayout(box);
     gridButton = makeButton(tr("Grade: Normal"), tr("Alterna o contraste da grade (Normal / Média / Alta)"));
     g->addWidget(gridButton, 0, 0);
+    interpButton = makeButton(tr("Interpolação"), tr("Como ligar as amostras: sen(x)/x (suave, como osciloscópios de bancada), "
+                                                     "linear ou só pontos"));
+    g->addWidget(interpButton, 1, 0);
+    connect(interpButton, &QPushButton::clicked, [this]() {
+        if (!view) return;
+        // ciclo: sen(x)/x -> linear -> pontos -> sen(x)/x
+        switch (view->interpolation) {
+        case Dso::INTERPOLATION_SINC: view->interpolation = Dso::INTERPOLATION_LINEAR; break;
+        case Dso::INTERPOLATION_LINEAR: view->interpolation = Dso::INTERPOLATION_OFF; break;
+        default: view->interpolation = Dso::INTERPOLATION_SINC; break;
+        }
+        updateInterpButton();
+    });
     connect(gridButton, &QPushButton::clicked, [this]() { emit gridContrastRequested((gridLevel + 1) % 3); });
     return box;
 }
@@ -521,4 +535,18 @@ void FrontPanelDock::setGridContrastLevel(int level) {
     gridLevel = level;
     static const char *names[] = {"Normal", "Média", "Alta"};
     if (gridButton && level >= 0 && level < 3) gridButton->setText(tr("Grade: %1").arg(QString::fromUtf8(names[level])));
+}
+
+void FrontPanelDock::setViewSettings(DsoSettingsView *v) {
+    view = v;
+    updateInterpButton();
+}
+
+void FrontPanelDock::updateInterpButton() {
+    if (!interpButton || !view) return;
+    switch (view->interpolation) {
+    case Dso::INTERPOLATION_SINC: interpButton->setText(tr("Interpolação: sen(x)/x")); break;
+    case Dso::INTERPOLATION_LINEAR: interpButton->setText(tr("Interpolação: linear")); break;
+    default: interpButton->setText(tr("Interpolação: pontos")); break;
+    }
 }

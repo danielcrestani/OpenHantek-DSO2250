@@ -26,6 +26,8 @@ class GraphGenerator : public QObject, public Processor {
     void generateGraphsXY(PPresult *result, const DsoSettingsScope *scope);
 
     bool isReady() const;
+    /// Interpolation mode used for the voltage graphs (points, linear or sin(x)/x)
+    void setInterpolation(const Dso::InterpolationMode *mode) { interpolation = mode; }
 
   private:
     void generateGraphsTYvoltage(PPresult *result);
@@ -35,6 +37,7 @@ class GraphGenerator : public QObject, public Processor {
     bool ready = false;
     const DsoSettingsScope *scope;
     const bool isSoftwareTriggerDevice;
+    const Dso::InterpolationMode *interpolation = nullptr;
 
     // Processor interface
     private:

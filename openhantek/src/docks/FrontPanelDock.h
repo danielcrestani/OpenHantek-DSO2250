@@ -23,6 +23,7 @@ class VoltageDock;
 class HorizontalDock;
 class TriggerDock;
 class DsoWidget;
+struct DsoSettingsView;
 
 /// \brief Front panel with oscilloscope-like buttons (RUN/STOP, AUTOSET, V/div, s/div, trigger...).
 /// It drives the existing docks so that every change keeps the whole program consistent.
@@ -39,6 +40,8 @@ class FrontPanelDock : public QDockWidget {
     void showData(std::shared_ptr<PPresult> data);
     /// Show the current grid contrast level on the button (0 normal, 1 média, 2 alta)
     void setGridContrastLevel(int level);
+    /// View settings (used for the interpolation button)
+    void setViewSettings(DsoSettingsView *view);
 
   signals:
     void gridContrastRequested(int level);
@@ -98,5 +101,8 @@ class FrontPanelDock : public QDockWidget {
     QButtonGroup *slopeGroup = nullptr;
     QTimer *refreshTimer = nullptr;
     QPushButton *gridButton = nullptr;
+    QPushButton *interpButton = nullptr;
+    DsoSettingsView *view = nullptr;
+    void updateInterpButton();
     int gridLevel = 0;
 };

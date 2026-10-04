@@ -3,6 +3,8 @@
 #include <QDebug>
 #include <QMutex>
 #include <exception>
+#include <algorithm>
+#include <cmath>
 
 #include "post/graphgenerator.h"
 #include "post/ppresult.h"
@@ -52,30 +54,80 @@ void GraphGenerator::generateGraphsTYvoltage(PPresult *result) {
             target.clear();
             continue;
         }
-        // Check if the sample count has changed
-        size_t sampleCount = samples.sample.size();
-        sampleCount -= (swTriggerStart - preTrigSamples);
-        // Registros grandes (ex.: 524288 amostras do DSO-2250) excedem o limite de desenho:
-        // em vez de abortar, desenha apenas 1 de cada "step" pontos.
-        const size_t maxDrawPoints = 250000;
-        const size_t step = sampleCount > maxDrawPoints ? (sampleCount + maxDrawPoints - 1) / maxDrawPoints : 1;
-        target.clear();
-        target.reserve(sampleCount / step + 1);
+        const size_t start = swTriggerStart - preTrigSamples;
+        if (start >= samples.sample.size()) {
+            target.clear();
+            continue;
+        }
+        const double *data = samples.sample.data() + start;
+        const size_t available = samples.sample.size() - start;
 
-        // What's the horizontal distance between sampling points?
-        float horizontalFactor = (float)(samples.interval / scope->horizontal.timebase);
-
-        // Fill vector array
-        std::vector<double>::const_iterator dataIterator = samples.sample.begin();
+        // Horizontal distance between sampling points (in divs)
+        const double horizontalFactor = samples.interval / scope->horizontal.timebase;
         const float gain = (float)scope->gain(channel);
         const float offset = (float)scope->voltage[channel].offset;
         const float invert = scope->voltage[channel].inverted ? -1.0f : 1.0f;
+        auto toY = [gain, offset, invert](double v) { return (float)v / gain * invert + offset; };
+        auto toX = [horizontalFactor](double pos) { return (float)(pos * horizontalFactor - DIVS_TIME / 2); };
 
-        std::advance(dataIterator, swTriggerStart - preTrigSamples);
+        // Only the samples that fall on the screen are drawn
+        size_t count = available;
+        if (horizontalFactor > 0) {
+            const double visible = std::ceil(DIVS_TIME / horizontalFactor) + 2.0;
+            if (visible < (double)count) count = (size_t)visible;
+        }
 
-        for (size_t position = 0; position < sampleCount; position += step) {
-            target.push_back(QVector3D(position * horizontalFactor - DIVS_TIME / 2,
-                                       (float)dataIterator[position] / gain * invert + offset, 0.0));
+        target.clear();
+        const size_t maxPoints = 4000;
+        const bool sinc = interpolation && *interpolation == Dso::INTERPOLATION_SINC;
+
+        if (count > maxPoints) {
+            // Many samples per pixel: keep min and max of each slice (peak detect), nothing is lost
+            const size_t buckets = maxPoints / 2;
+            target.reserve(buckets * 2);
+            for (size_t b = 0; b < buckets; ++b) {
+                const size_t i0 = b * count / buckets, i1 = (b + 1) * count / buckets;
+                if (i1 <= i0) continue;
+                size_t iMin = i0, iMax = i0;
+                for (size_t i = i0 + 1; i < i1; ++i) {
+                    if (data[i] < data[iMin]) iMin = i;
+                    if (data[i] > data[iMax]) iMax = i;
+                }
+                const size_t first = std::min(iMin, iMax), second = std::max(iMin, iMax);
+                target.push_back(QVector3D(toX((double)first), toY(data[first]), 0.0f));
+                if (second != first) target.push_back(QVector3D(toX((double)second), toY(data[second]), 0.0f));
+            }
+        } else if (sinc && count >= 4 && count < maxPoints / 2) {
+            // Few samples per screen: sin(x)/x reconstruction (Lanczos window), like bench oscilloscopes
+            const int a = 6;
+            size_t factor = (maxPoints / 2) / count;
+            if (factor < 2) factor = 2;
+            if (factor > 64) factor = 64;
+            const size_t outCount = (count - 1) * factor + 1;
+            target.reserve(outCount);
+            auto sincf = [](double x) {
+                if (std::fabs(x) < 1e-12) return 1.0;
+                const double px = M_PI * x;
+                return std::sin(px) / px;
+            };
+            for (size_t o = 0; o < outCount; ++o) {
+                const double t = (double)o / (double)factor;
+                const long i = (long)std::floor(t);
+                double sum = 0.0, wsum = 0.0;
+                for (long k = i - a + 1; k <= i + a; ++k) {
+                    if (k < 0 || k >= (long)available) continue;
+                    const double x = t - (double)k;
+                    if (std::fabs(x) >= a) continue;
+                    const double w = sincf(x) * sincf(x / a);
+                    sum += data[k] * w;
+                    wsum += w;
+                }
+                const double value = wsum != 0.0 ? sum / wsum : data[std::min((size_t)i, available - 1)];
+                target.push_back(QVector3D(toX(t), toY(value), 0.0f));
+            }
+        } else {
+            target.reserve(count);
+            for (size_t i = 0; i < count; ++i) target.push_back(QVector3D(toX((double)i), toY(data[i]), 0.0f));
         }
     }
 }

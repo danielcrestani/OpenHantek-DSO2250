@@ -149,6 +149,7 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, Expo
         connect(a, &QAction::triggered, [this, level]() { applyGridContrast(level); });
     }
     frontPanel->setGridContrastLevel(currentLevel);
+    frontPanel->setViewSettings(&mSettings->view);
     connect(frontPanel, &FrontPanelDock::gridContrastRequested, [this, gridGroup](int level) {
         applyGridContrast(level);
         QList<QAction *> acts = gridGroup->actions();
