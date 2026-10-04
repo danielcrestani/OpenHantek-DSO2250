@@ -227,9 +227,12 @@ bool LegacyExportDrawer::exportSamples(const PPresult *result, QPaintDevice* pai
                         for (unsigned int position = firstPosition; position <= lastPosition; ++position)
                             graph[position - firstPosition] =
                                 QPointF(position * horizontalFactor - DIVS_TIME / 2,
-                                        result->data(channel)->spectrum.sample[position] /
-                                                settings->scope.spectrum[channel].magnitude +
-                                            settings->scope.spectrum[channel].offset);
+                                        std::max<double>(-DIVS_VOLTAGE / 2,
+                                                 std::min<double>(DIVS_VOLTAGE / 2,
+                                                          (result->data(channel)->spectrum.sample[position] -
+                                                           settings->post.spectrumReference) /
+                                                                  settings->scope.spectrum[channel].magnitude +
+                                                              DIVS_VOLTAGE / 2 + settings->scope.spectrum[channel].offset)));
 
                         painter.drawPolyline(graph, lastPosition - firstPosition + 1);
                         delete[] graph;

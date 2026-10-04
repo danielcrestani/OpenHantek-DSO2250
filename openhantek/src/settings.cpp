@@ -5,6 +5,8 @@
 #include <QDebug>
 #include <QSettings>
 
+#include <algorithm>
+
 #include "settings.h"
 
 #include "dsowidget.h"
@@ -143,9 +145,11 @@ void DsoSettings::load() {
     }
 
     // Post processing
-    if (store->contains("spectrumLimit")) post.spectrumLimit = store->value("spectrumLimit").toDouble();
-    if (store->contains("spectrumReference"))
-        post.spectrumReference = store->value("spectrumReference").toDouble();
+    // Escala em dBV desde a correção 11: chaves novas para não herdar os valores antigos (dBm arbitrário)
+    if (store->contains("spectrumFloorDbV")) post.spectrumLimit = store->value("spectrumFloorDbV").toDouble();
+    if (store->contains("spectrumRefDbV")) post.spectrumReference = store->value("spectrumRefDbV").toDouble();
+    if (store->contains("spectrumAverage")) post.spectrumAverage = std::max(1u, store->value("spectrumAverage").toUInt());
+    if (store->contains("spectrumPeakHold")) post.spectrumPeakHold = store->value("spectrumPeakHold").toBool();
     if (store->contains("spectrumWindow"))
         post.spectrumWindow = (Dso::WindowFunction)store->value("spectrumWindow").toInt();
     store->endGroup();
@@ -272,8 +276,10 @@ void DsoSettings::save() {
     }
 
     // Post processing
-    store->setValue("spectrumLimit", post.spectrumLimit);
-    store->setValue("spectrumReference", post.spectrumReference);
+    store->setValue("spectrumFloorDbV", post.spectrumLimit);
+    store->setValue("spectrumRefDbV", post.spectrumReference);
+    store->setValue("spectrumAverage", post.spectrumAverage);
+    store->setValue("spectrumPeakHold", post.spectrumPeakHold);
     store->setValue("spectrumWindow", (int)post.spectrumWindow);
     store->endGroup();
 

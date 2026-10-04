@@ -38,6 +38,11 @@ class SpectrumDock : public QDockWidget {
     /// \return Index of channel, INT_MAX on error.
     unsigned setUsed(ChannelID channel, bool used);
 
+    /// Change like the user did (emits the signals so the whole program follows)
+    void selectUsed(ChannelID channel, bool used);
+    bool selectMagnitude(ChannelID channel, double magnitude);
+    const std::vector<double> &magnitudes() const { return magnitudeSteps; }
+
   protected:
     void closeEvent(QCloseEvent *event);
 

@@ -8,6 +8,7 @@
 
 #include "post/graphgenerator.h"
 #include "post/ppresult.h"
+#include "post/postprocessingsettings.h"
 #include "post/softwaretrigger.h"
 #include "hantekdso/controlspecification.h"
 #include "scopesettings.h"
@@ -198,24 +199,41 @@ void GraphGenerator::generateGraphsTYspectrum(PPresult *result) {
             target.clear();
             continue;
         }
-        // Check if the sample count has changed
-        size_t sampleCount = samples.sample.size();
-        size_t neededSize = sampleCount * 2;
+        // Spectrum samples are in dBV, one per bin from 0 Hz to Nyquist.
+        // Reference level = top of the screen; the channel offset moves the trace (divs).
+        const size_t bins = samples.sample.size();
+        const double hf = samples.interval / scope->horizontal.frequencybase; // divs per bin
+        const double magnitude = scope->spectrum[channel].magnitude;
+        const double offset = scope->spectrum[channel].offset;
+        const double ref = postprocessing ? postprocessing->spectrumReference : 0.0;
+        auto toY = [=](double db) {
+            double y = (db - ref) / magnitude + DIVS_VOLTAGE / 2 + offset;
+            return (float)std::max<double>(-DIVS_VOLTAGE / 2, std::min<double>(DIVS_VOLTAGE / 2, y));
+        };
+        auto toX = [=](double bin) { return (float)(bin * hf - DIVS_TIME / 2); };
 
-        // Set size directly to avoid reallocations
-        target.reserve(neededSize);
+        size_t count = bins;
+        if (hf > 0) {
+            const double visible = std::ceil(DIVS_TIME / hf) + 2.0;
+            if (visible < (double)count) count = (size_t)visible;
+        }
 
-        // What's the horizontal distance between sampling points?
-        float horizontalFactor = (float)(samples.interval / scope->horizontal.frequencybase);
-
-        // Fill vector array
-        std::vector<double>::const_iterator dataIterator = samples.sample.begin();
-        const float magnitude = (float)scope->spectrum[channel].magnitude;
-        const float offset = (float)scope->spectrum[channel].offset;
-
-        for (unsigned int position = 0; position < sampleCount; ++position) {
-            target.push_back(QVector3D(position * horizontalFactor - DIVS_TIME / 2,
-                                       (float)*(dataIterator++) / magnitude + offset, 0.0));
+        target.clear();
+        const size_t maxPoints = 2000;
+        if (count > maxPoints) {
+            // Many bins per pixel: keep the highest bin of each slice (positive peak detector, like an analyzer)
+            target.reserve(maxPoints);
+            for (size_t b = 0; b < maxPoints; ++b) {
+                const size_t a = b * count / maxPoints;
+                const size_t e = std::max(a + 1, (b + 1) * count / maxPoints);
+                size_t best = a;
+                for (size_t k = a; k < e && k < bins; ++k)
+                    if (samples.sample[k] > samples.sample[best]) best = k;
+                target.push_back(QVector3D(toX((double)best), toY(samples.sample[best]), 0.0f));
+            }
+        } else {
+            target.reserve(count);
+            for (size_t k = 0; k < count; ++k) target.push_back(QVector3D(toX((double)k), toY(samples.sample[k]), 0.0f));
         }
     }
 }

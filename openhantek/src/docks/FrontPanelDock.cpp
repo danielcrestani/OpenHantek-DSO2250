@@ -20,6 +20,8 @@
 #include <cmath>
 
 #include "HorizontalDock.h"
+#include "SpectrumDock.h"
+#include "post/postprocessingsettings.h"
 #include "TriggerDock.h"
 #include "VoltageDock.h"
 #include "dsowidget.h"
@@ -47,6 +49,7 @@ FrontPanelDock::FrontPanelDock(DsoSettingsScope *scope, const Dso::ControlSpecif
     QWidget *content = new QWidget();
     content->setObjectName("panelContent");
     QVBoxLayout *layout = new QVBoxLayout(content);
+    mainLayout = layout;
     layout->setContentsMargins(6, 6, 6, 6);
     layout->setSpacing(8);
 
@@ -479,9 +482,30 @@ void FrontPanelDock::showData(std::shared_ptr<PPresult> data) {
         s.freq = dc->frequency;
         s.valid = true;
     }
+
+    // FFT readouts: strongest component in the span, its level and THD
+    for (ChannelID ch = 0; ch < data->channelCount(); ++ch) {
+        const DataChannel *dc = data->data(ch);
+        if (dc && dc->voltage.interval > 0 && ch < spec->channels) lastSampleInterval = dc->voltage.interval;
+        if (ch >= fftReadouts.size()) continue;
+        QLabel *l = fftReadouts[ch];
+        if (!dc || !scope->spectrum[ch].used || !dc->specPeakValid) {
+            l->setText(scope->spectrum[ch].used ? tr("%1: ---").arg(scope->spectrum[ch].name) : QString());
+            l->setVisible(scope->spectrum[ch].used);
+            continue;
+        }
+        QString t = tr("%1: %2  %3 dBV")
+                        .arg(scope->spectrum[ch].name)
+                        .arg(valueToString(dc->specPeakFreq, UNIT_HERTZ, 5))
+                        .arg(QString::number(dc->specPeakDbV, 'f', 2));
+        if (dc->specThd >= 0) t += tr("  THD %1%").arg(QString::number(dc->specThd, 'f', dc->specThd < 10 ? 2 : 1));
+        l->setText(t);
+        l->setVisible(true);
+    }
 }
 
 void FrontPanelDock::refresh() {
+    refreshSpectrum();
     const bool sampling = dsoControl->isSampling();
     runButton->setText(sampling ? QString::fromUtf8("■ STOP") : QString::fromUtf8("▶ RUN"));
     runButton->setStyleSheet(sampling ? "QPushButton { background: #b03030; border-color: #e05050; }"
@@ -565,4 +589,235 @@ void FrontPanelDock::updateInterpButton() {
     case Dso::INTERPOLATION_LINEAR: interpButton->setText(tr("Interpolação: linear")); break;
     default: interpButton->setText(tr("Interpolação: pontos")); break;
     }
+}
+
+// ---------------------------------------------------------------- FFT / analisador de espectro
+static double nextOneTwoFive(double value, int dir) {
+    // 1-2-5 sequence: next value above (dir>0) or below (dir<0) the current one
+    if (value <= 0) value = 1;
+    const double decade = std::pow(10.0, std::floor(std::log10(value) + 1e-9));
+    static const double m[] = {1, 2, 5};
+    std::vector<double> seq;
+    for (int d = -1; d <= 1; ++d)
+        for (double x : m) seq.push_back(x * decade * std::pow(10.0, d));
+    if (dir > 0) {
+        for (double v : seq)
+            if (v > value * 1.0001) return v;
+    } else {
+        for (auto it = seq.rbegin(); it != seq.rend(); ++it)
+            if (*it < value * 0.9999) return *it;
+    }
+    return value;
+}
+
+QColor FrontPanelDock::spectrumColor(ChannelID ch) const {
+    QColor c;
+    if (view && ch < view->screen.spectrum.size()) c = view->screen.spectrum[ch];
+    else c = ch < colors.size() ? colors[ch] : QColor(Qt::white);
+    c.setAlpha(255);
+    return c;
+}
+
+void FrontPanelDock::setSpectrumControls(SpectrumDock *dock, DsoSettingsPostProcessing *postSettings) {
+    spectrumDock = dock;
+    post = postSettings;
+    if (!spectrumDock || !post || spectrumBox || !mainLayout) return;
+    spectrumBox = makeSpectrumBox();
+    mainLayout->insertWidget(std::max(0, mainLayout->count() - 1), spectrumBox); // before the stretch
+    refreshSpectrum();
+}
+
+QGroupBox *FrontPanelDock::makeSpectrumBox() {
+    QGroupBox *box = new QGroupBox(tr("FFT (analisador de espectro)"));
+    QGridLayout *g = new QGridLayout(box);
+    int row = 0;
+
+    // Liga/desliga por canal
+    QHBoxLayout *onRow = new QHBoxLayout();
+    for (ChannelID ch = 0; ch < scope->spectrum.size(); ++ch) {
+        QPushButton *b = makeButton(scope->spectrum[ch].name, tr("Mostra a FFT deste canal"), true);
+        const QString col = spectrumColor(ch).name();
+        b->setStyleSheet(QString("QPushButton { color: %1; } QPushButton:checked { background: %1; color: #000000; "
+                                 "border-color: %1; }")
+                             .arg(col));
+        connect(b, &QPushButton::toggled, [this, ch](bool on) {
+            spectrumDock->selectUsed(ch, on);
+            refresh();
+        });
+        fftOnButtons.push_back(b);
+        onRow->addWidget(b);
+    }
+    g->addLayout(onRow, row++, 0, 1, 4);
+
+    // Janela
+    g->addWidget(new QLabel(tr("Janela")), row++, 0, 1, 4);
+    windowGroup = new QButtonGroup(this);
+    windowGroup->setExclusive(true);
+    struct W {
+        const char *name;
+        const char *tip;
+        Dso::WindowFunction w;
+    };
+    static const W wins[] = {
+        {"Ret.", "Retangular: melhor resolução, só para sinais periódicos exatos ou transientes", Dso::WindowFunction::RECTANGULAR},
+        {"Hann", "Hann: uso geral", Dso::WindowFunction::HANN},
+        {"Flat-top", "Flat-top: amplitude exata (±0,02 dB), picos largos", Dso::WindowFunction::FLATTOP},
+        {"B-Harris", "Blackman-Harris: faixa dinâmica alta (ver harmônicos pequenos)", Dso::WindowFunction::BLACKMANHARRIS}};
+    QHBoxLayout *winRow = new QHBoxLayout();
+    for (const W &w : wins) {
+        QPushButton *b = makeButton(QString::fromUtf8(w.name), QString::fromUtf8(w.tip), true);
+        windowGroup->addButton(b, (int)w.w);
+        winRow->addWidget(b);
+    }
+    g->addLayout(winRow, row++, 0, 1, 4);
+    connect(windowGroup, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), [this](int id) {
+        post->spectrumWindow = (Dso::WindowFunction)id;
+        refresh();
+    });
+
+    // dB/div
+    QPushButton *dbDown = makeButton(QString::fromUtf8("▼"), tr("Menos dB por divisão (mais detalhe)"));
+    QPushButton *dbUp = makeButton(QString::fromUtf8("▲"), tr("Mais dB por divisão (mais faixa dinâmica)"));
+    dbDivLabel = new QLabel();
+    dbDivLabel->setProperty("role", "value");
+    dbDivLabel->setAlignment(Qt::AlignCenter);
+    g->addWidget(new QLabel(tr("Escala")), row, 0);
+    g->addWidget(dbDown, row, 1);
+    g->addWidget(dbDivLabel, row, 2);
+    g->addWidget(dbUp, row++, 3);
+    connect(dbDown, &QPushButton::clicked, [this]() { stepSpectrumMagnitude(-1); });
+    connect(dbUp, &QPushButton::clicked, [this]() { stepSpectrumMagnitude(+1); });
+
+    // Nível de referência (topo da tela)
+    QPushButton *refDown = makeButton(QString::fromUtf8("▼"), tr("Referência (topo da tela) -10 dB"));
+    QPushButton *refUp = makeButton(QString::fromUtf8("▲"), tr("Referência (topo da tela) +10 dB"));
+    refLabel = new QLabel();
+    refLabel->setProperty("role", "value");
+    refLabel->setAlignment(Qt::AlignCenter);
+    g->addWidget(new QLabel(tr("Ref. topo")), row, 0);
+    g->addWidget(refDown, row, 1);
+    g->addWidget(refLabel, row, 2);
+    g->addWidget(refUp, row++, 3);
+    connect(refDown, &QPushButton::clicked, [this]() {
+        post->spectrumReference = std::max(-200.0, post->spectrumReference - 10.0);
+        refresh();
+    });
+    connect(refUp, &QPushButton::clicked, [this]() {
+        post->spectrumReference = std::min(60.0, post->spectrumReference + 10.0);
+        refresh();
+    });
+
+    // Hz/div
+    QPushButton *fDown = makeButton(QString::fromUtf8("◀"), tr("Menos Hz por divisão (zoom)"));
+    QPushButton *fUp = makeButton(QString::fromUtf8("▶"), tr("Mais Hz por divisão"));
+    fbaseLabel = new QLabel();
+    fbaseLabel->setProperty("role", "value");
+    fbaseLabel->setAlignment(Qt::AlignCenter);
+    g->addWidget(new QLabel(tr("Hz/div")), row, 0);
+    g->addWidget(fDown, row, 1);
+    g->addWidget(fbaseLabel, row, 2);
+    g->addWidget(fUp, row++, 3);
+    connect(fDown, &QPushButton::clicked, [this]() { stepFrequencybase(-1); });
+    connect(fUp, &QPushButton::clicked, [this]() { stepFrequencybase(+1); });
+
+    // Faixa, média, retenção de pico
+    QPushButton *nyq = makeButton(tr("Faixa total"), tr("Mostra de 0 Hz até a metade da taxa de amostragem (Nyquist)"));
+    avgButton = makeButton(tr("Média"), tr("Média de potência de várias aquisições: reduz o ruído (desl. / 4 / 16 / 64)"));
+    holdButton = makeButton(tr("Ret. pico"), tr("Mantém o máximo de cada frequência (max hold)"), true);
+    QPushButton *clr = makeButton(tr("Limpar"), tr("Reinicia a média e a retenção de pico"));
+    g->addWidget(nyq, row, 0, 1, 2);
+    g->addWidget(avgButton, row++, 2, 1, 2);
+    g->addWidget(holdButton, row, 0, 1, 2);
+    g->addWidget(clr, row++, 2, 1, 2);
+    connect(nyq, &QPushButton::clicked, this, &FrontPanelDock::spanToNyquist);
+    connect(avgButton, &QPushButton::clicked, [this]() {
+        static const unsigned seq[] = {1, 4, 16, 64};
+        unsigned next = 1;
+        for (size_t i = 0; i < 4; ++i)
+            if (post->spectrumAverage == seq[i]) next = seq[(i + 1) % 4];
+        post->spectrumAverage = next;
+        refresh();
+    });
+    connect(holdButton, &QPushButton::toggled, [this](bool on) {
+        post->spectrumPeakHold = on;
+        refresh();
+    });
+    connect(clr, &QPushButton::clicked, [this]() { ++post->spectrumReset; });
+
+    // Leituras: componente mais forte da faixa visível
+    QLabel *hdr = new QLabel(tr("Pico (maior componente na tela):"));
+    hdr->setProperty("role", "readout");
+    g->addWidget(hdr, row++, 0, 1, 4);
+    for (ChannelID ch = 0; ch < scope->spectrum.size(); ++ch) {
+        QLabel *l = new QLabel();
+        l->setProperty("role", "readout");
+        l->setStyleSheet(QString("QLabel { color: %1; font-family: monospace; font-size: 9pt; }")
+                             .arg(spectrumColor(ch).name()));
+        l->setVisible(false);
+        fftReadouts.push_back(l);
+        g->addWidget(l, row++, 0, 1, 4);
+    }
+    return box;
+}
+
+void FrontPanelDock::refreshSpectrum() {
+    if (!spectrumBox || !post) return;
+    for (ChannelID ch = 0; ch < fftOnButtons.size() && ch < scope->spectrum.size(); ++ch) {
+        QPushButton *b = fftOnButtons[ch];
+        if (b->isChecked() != scope->spectrum[ch].used) {
+            QSignalBlocker blk(b);
+            b->setChecked(scope->spectrum[ch].used);
+        }
+    }
+    if (QAbstractButton *b = windowGroup->button((int)post->spectrumWindow)) {
+        if (!b->isChecked()) b->setChecked(true);
+    } else if (QAbstractButton *c = windowGroup->checkedButton()) {
+        // window chosen in the configuration dialog that has no button here
+        windowGroup->setExclusive(false);
+        c->setChecked(false);
+        windowGroup->setExclusive(true);
+    }
+    if (!scope->spectrum.empty())
+        dbDivLabel->setText(QString("%1 dB/div").arg(scope->spectrum[0].magnitude, 0, 'g', 3));
+    refLabel->setText(QString("%1 dBV").arg(post->spectrumReference, 0, 'f', 0));
+    fbaseLabel->setText(valueToString(scope->horizontal.frequencybase, UNIT_HERTZ, 3));
+    avgButton->setText(post->spectrumAverage > 1 ? tr("Média: %1x").arg(post->spectrumAverage) : tr("Média: desl."));
+    avgButton->setStyleSheet(post->spectrumAverage > 1 ? "QPushButton { background: #2f6fbf; border-color: #5a95e0; }"
+                                                       : QString());
+    if (holdButton->isChecked() != post->spectrumPeakHold) {
+        QSignalBlocker blk(holdButton);
+        holdButton->setChecked(post->spectrumPeakHold);
+    }
+}
+
+void FrontPanelDock::stepSpectrumMagnitude(int dir) {
+    if (!spectrumDock || scope->spectrum.empty()) return;
+    const std::vector<double> &steps = spectrumDock->magnitudes();
+    if (steps.empty()) return;
+    const double cur = scope->spectrum[0].magnitude;
+    size_t idx = 0;
+    for (size_t i = 0; i < steps.size(); ++i)
+        if (std::fabs(steps[i] - cur) < std::fabs(steps[idx] - cur)) idx = i;
+    if (dir > 0 && idx + 1 < steps.size()) ++idx;
+    if (dir < 0 && idx > 0) --idx;
+    for (ChannelID ch = 0; ch < scope->spectrum.size(); ++ch) spectrumDock->selectMagnitude(ch, steps[idx]);
+    refresh();
+}
+
+void FrontPanelDock::stepFrequencybase(int dir) {
+    double f = nextOneTwoFive(scope->horizontal.frequencybase, dir);
+    f = std::max(1.0, std::min(100e6, f));
+    horizontalDock->selectFrequencybase(f);
+    refresh();
+}
+
+void FrontPanelDock::spanToNyquist() {
+    if (lastSampleInterval <= 0) return;
+    const double nyquist = 0.5 / lastSampleInterval;
+    const double perDiv = nyquist / DIVS_TIME;
+    // smallest 1-2-5 value that shows the whole band
+    double f = nextOneTwoFive(perDiv * 0.9999, +1);
+    if (f / perDiv > 2.6) f = perDiv; // fallback, should not happen
+    horizontalDock->selectFrequencybase(std::max(1.0, std::min(100e6, f)));
+    refresh();
 }

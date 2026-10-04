@@ -23,7 +23,10 @@ class VoltageDock;
 class HorizontalDock;
 class TriggerDock;
 class DsoWidget;
+class SpectrumDock;
+class QVBoxLayout;
 struct DsoSettingsView;
+struct DsoSettingsPostProcessing;
 
 /// \brief Front panel with oscilloscope-like buttons (RUN/STOP, AUTOSET, V/div, s/div, trigger...).
 /// It drives the existing docks so that every change keeps the whole program consistent.
@@ -42,6 +45,8 @@ class FrontPanelDock : public QDockWidget {
     void setGridContrastLevel(int level);
     /// View settings (used for the interpolation button)
     void setViewSettings(DsoSettingsView *view);
+    /// Adds the FFT (spectrum analyzer) controls
+    void setSpectrumControls(SpectrumDock *dock, DsoSettingsPostProcessing *post);
 
   signals:
     void gridContrastRequested(int level);
@@ -106,4 +111,25 @@ class FrontPanelDock : public QDockWidget {
     DsoSettingsView *view = nullptr;
     void updateInterpButton();
     int gridLevel = 0;
+
+    // FFT / spectrum analyzer
+    QGroupBox *makeSpectrumBox();
+    void refreshSpectrum();
+    void stepSpectrumMagnitude(int dir);
+    void stepFrequencybase(int dir);
+    void spanToNyquist();
+    QColor spectrumColor(ChannelID ch) const;
+    QVBoxLayout *mainLayout = nullptr;
+    SpectrumDock *spectrumDock = nullptr;
+    DsoSettingsPostProcessing *post = nullptr;
+    QGroupBox *spectrumBox = nullptr;
+    std::vector<QPushButton *> fftOnButtons;
+    std::vector<QLabel *> fftReadouts;
+    QButtonGroup *windowGroup = nullptr;
+    QLabel *dbDivLabel = nullptr;
+    QLabel *refLabel = nullptr;
+    QLabel *fbaseLabel = nullptr;
+    QPushButton *avgButton = nullptr;
+    QPushButton *holdButton = nullptr;
+    double lastSampleInterval = 0.0;
 };

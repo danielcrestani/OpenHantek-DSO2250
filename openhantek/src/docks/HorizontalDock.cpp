@@ -106,6 +106,14 @@ void HorizontalDock::selectTimebase(double timebase) {
     timebaseSelected(value);
 }
 
+void HorizontalDock::selectFrequencybase(double frequencybase) {
+    {
+        QSignalBlocker blocker(frequencybaseSiSpinBox);
+        frequencybaseSiSpinBox->setValue(frequencybase);
+    }
+    frequencybaseSelected(frequencybaseSiSpinBox->value());
+}
+
 void HorizontalDock::setFrequencybase(double frequencybase) {
     QSignalBlocker blocker(frequencybaseSiSpinBox);
     frequencybaseSiSpinBox->setValue(frequencybase);

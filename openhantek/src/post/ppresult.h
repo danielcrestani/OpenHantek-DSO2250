@@ -20,6 +20,11 @@ struct DataChannel {
     SampleValues spectrum;  ///< The frequency-domain power levels (dB)
 
     double frequency = 0.0; ///< The frequency of the signal
+    // Spectrum marker (strongest component inside the displayed span)
+    bool specPeakValid = false;
+    double specPeakFreq = 0.0; ///< Hz (interpolated)
+    double specPeakDbV = 0.0;  ///< RMS level of that component in dBV (window independent)
+    double specThd = -1.0;     ///< THD in % (harmonics 2..10), <0 if not available
     // Calculate peak-to-peak voltage
     double computeAmplitude() const;
 };

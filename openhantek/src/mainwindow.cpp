@@ -150,6 +150,7 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, Expo
     }
     frontPanel->setGridContrastLevel(currentLevel);
     frontPanel->setViewSettings(&mSettings->view);
+    frontPanel->setSpectrumControls(spectrumDock, &mSettings->post);
     connect(frontPanel, &FrontPanelDock::gridContrastRequested, [this, gridGroup](int level) {
         applyGridContrast(level);
         QList<QAction *> acts = gridGroup->actions();

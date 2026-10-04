@@ -7,6 +7,7 @@
 #include <QLabel>
 #include <QSignalBlocker>
 
+#include <algorithm>
 #include <cmath>
 
 #include "SpectrumDock.h"
@@ -89,6 +90,19 @@ int SpectrumDock::setMagnitude(ChannelID channel, double magnitude) {
     int index = (int)std::distance(magnitudeSteps.begin(), indexIt);
     channelBlocks[channel].magnitudeComboBox->setCurrentIndex(index);
     return index;
+}
+
+void SpectrumDock::selectUsed(ChannelID channel, bool used) {
+    if (channel >= channelBlocks.size()) return;
+    channelBlocks[channel].usedCheckBox->setChecked(used);
+}
+
+bool SpectrumDock::selectMagnitude(ChannelID channel, double magnitude) {
+    if (channel >= channelBlocks.size()) return false;
+    auto it = std::find(magnitudeSteps.begin(), magnitudeSteps.end(), magnitude);
+    if (it == magnitudeSteps.end()) return false;
+    channelBlocks[channel].magnitudeComboBox->setCurrentIndex((int)std::distance(magnitudeSteps.begin(), it));
+    return true;
 }
 
 unsigned SpectrumDock::setUsed(ChannelID channel, bool used) {

@@ -174,6 +174,7 @@ int main(int argc, char *argv[]) {
     MathChannelGenerator mathchannelGenerator(&settings.scope, device->getModel()->spec()->channels);
     GraphGenerator graphGenerator(&settings.scope, device->getModel()->spec()->isSoftwareTriggerDevice);
     graphGenerator.setInterpolation(&settings.view.interpolation);
+    graphGenerator.setPostProcessing(&settings.post);
 
     postProcessing.registerProcessor(&samplesToExportRaw);
     postProcessing.registerProcessor(&mathchannelGenerator);

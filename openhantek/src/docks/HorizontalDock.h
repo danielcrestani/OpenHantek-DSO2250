@@ -35,6 +35,8 @@ class HorizontalDock : public QDockWidget {
     /// \brief Changes the frequencybase.
     /// \param frequencybase The frequencybase in hertz.
     void setFrequencybase(double timebase);
+    /// Change the frequencybase like the user did (emits frequencybaseChanged)
+    void selectFrequencybase(double frequencybase);
     /// \brief Changes the samplerate.
     /// \param samplerate The samplerate in seconds.
     void setSamplerate(double samplerate);

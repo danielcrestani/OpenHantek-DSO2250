@@ -44,6 +44,9 @@ Q_DECLARE_METATYPE(Dso::WindowFunction)
 
 struct DsoSettingsPostProcessing {
     Dso::WindowFunction spectrumWindow = Dso::WindowFunction::HANN; ///< Window function for DFT
-    double spectrumReference = 0.0;                                 ///< Reference level for spectrum in dBm
-    double spectrumLimit = -20.0; ///< Minimum magnitude of the spectrum (Avoids peaks)
+    double spectrumReference = 0.0;                                 ///< Reference level (top of screen) in dBV
+    double spectrumLimit = -200.0; ///< Minimum magnitude of the spectrum in dBV (floor)
+    unsigned spectrumAverage = 1;  ///< Number of spectra averaged (power average, 1 = off)
+    bool spectrumPeakHold = false; ///< Keep the maximum of each frequency bin
+    unsigned spectrumReset = 0;    ///< Incremented to clear average / peak hold
 };
