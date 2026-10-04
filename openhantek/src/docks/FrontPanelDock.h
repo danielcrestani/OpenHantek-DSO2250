@@ -58,6 +58,7 @@ class FrontPanelDock : public QDockWidget {
         QPushButton *invertButton = nullptr;
         QButtonGroup *probeGroup = nullptr;
         QLabel *vdivLabel = nullptr;
+        QLabel *vdivTitle = nullptr;
         QLabel *posLabel = nullptr;
     };
     struct ChannelStats {
@@ -75,7 +76,7 @@ class FrontPanelDock : public QDockWidget {
     void refresh();
     void stepGain(ChannelID ch, int dir);
     void stepOffset(ChannelID ch, double delta);
-    void changeProbe(ChannelID ch, double probe);
+    void changeProbe(ChannelID ch, unsigned sensor);
     void stepTriggerLevel(int dir);
     void triggerLevelTo50();
     void autoset();

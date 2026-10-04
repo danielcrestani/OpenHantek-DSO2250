@@ -76,6 +76,7 @@ class PPresult {
         double dbPerDiv = 10; ///< dB/div
         double offset = 0;    ///< trace offset in divs
         ChannelID channel = 0;
+        bool current = false; ///< dBA instead of dBV
     } spectrumAxis;
     ChannelsGraphs vaChannelVoltage;
   private:

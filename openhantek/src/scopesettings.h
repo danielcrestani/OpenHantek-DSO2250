@@ -8,6 +8,7 @@
 #include "hantekdso/controlspecification.h"
 #include "hantekdso/enums.h"
 #include "hantekprotocol/definitions.h"
+#include "utils/printutils.h"
 #include <vector>
 
 #define MARKER_COUNT 2 ///< Number of markers
@@ -64,6 +65,27 @@ struct DsoSettingsScopeSpectrum : public DsoSettingsScopeChannel {
     double magnitude = 20.0; ///< The vertical resolution in dB/div
 };
 
+/// \brief Sensor connected to a channel: voltage probe or current clamp.
+/// factor = units (V or A) per volt at the scope input.
+struct ProbeSensor {
+    const char *label; ///< Button text
+    const char *tip;   ///< Tooltip
+    double factor;
+    bool current;      ///< true: the channel shows amperes
+};
+inline const std::vector<ProbeSensor> &probeSensors() {
+    static const std::vector<ProbeSensor> sensors = {
+        {"x1", "Ponteira x1", 1.0, false},
+        {"x10", "Ponteira x10", 10.0, false},
+        {"x50", "Ponteira x50", 50.0, false},
+        {"x100", "Ponteira x100", 100.0, false},
+        {"CC65 20A", "Garra Hantek CC-65, chave em 20 A: 100 mV/A (até 20 A)", 10.0, true},
+        {"CC65 65A", "Garra Hantek CC-65, chave em 65 A: 10 mV/A (até 65 A)", 100.0, true},
+        {"CC650 60A", "Garra Hantek CC-650, chave em 60 A: 10 mV/A (até 60 A)", 100.0, true},
+        {"CC650 650A", "Garra Hantek CC-650, chave em 650 A: 1 mV/A (até 650 A)", 1000.0, true}};
+    return sensors;
+}
+
 /// \brief Holds the settings for the normal voltage graphs.
 /// TODO Use ControlSettingsVoltage
 struct DsoSettingsScopeVoltage : public DsoSettingsScopeChannel {
@@ -72,7 +94,9 @@ struct DsoSettingsScopeVoltage : public DsoSettingsScopeChannel {
     unsigned gainStepIndex = 6;       ///< The vertical resolution in V/div (default = 1.0)
     unsigned couplingOrMathIndex = 0; ///< Different index: coupling for real- and mode for math-channels
     bool inverted = false;            ///< true if the channel is inverted (mirrored on cross-axis)
-    double probe = 1.0;               ///< Probe attenuation (1, 10, 50, 100)
+    double probe = 1.0;               ///< Probe attenuation (1, 10, 50, 100) or clamp factor (A/V)
+    unsigned sensor = 0;              ///< Index in probeSensors()
+    bool current = false;             ///< Current clamp: values are amperes
 };
 
 /// \brief Holds the settings for the oscilloscope.
@@ -89,6 +113,12 @@ struct DsoSettingsScope {
     /// Gain step without probe attenuation
     double hwGain(unsigned channel) const { return gainSteps[voltage[channel].gainStepIndex]; }
     bool anyUsed(ChannelID channel) { return voltage[channel].used | spectrum[channel].used; }
+    /// Unit of a channel: amperes with a current clamp, volts otherwise
+    Unit unit(ChannelID channel) const {
+        return channel < voltage.size() && voltage[channel].current ? UNIT_AMPERE : UNIT_VOLTS;
+    }
+    /// "V" or "A"
+    QString unitSymbol(ChannelID channel) const { return unit(channel) == UNIT_AMPERE ? "A" : "V"; }
 
     Dso::Coupling coupling(ChannelID channel, const Dso::ControlSpecification *deviceSpecification) const {
         return deviceSpecification->couplings[voltage[channel].couplingOrMathIndex];

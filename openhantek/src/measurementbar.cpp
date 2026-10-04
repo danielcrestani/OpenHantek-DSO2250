@@ -119,7 +119,7 @@ QString MeasurementBar::shortName(int m) {
     return QString();
 }
 
-QString MeasurementBar::format(int m, double value) {
+QString MeasurementBar::format(int m, double value, Unit unit) {
     if (!std::isfinite(value)) return QString("---");
     switch (m) {
     case FREQUENCY: return valueToString(value, UNIT_HERTZ, 4);
@@ -129,7 +129,7 @@ QString MeasurementBar::format(int m, double value) {
     case RISE:
     case FALL: return valueToString(value, UNIT_SECONDS, 4);
     case DUTY: return QString("%1 %").arg(value * 100.0, 0, 'f', 1);
-    default: return valueToString(value, UNIT_VOLTS, 4);
+    default: return valueToString(value, unit, 4);
     }
 }
 
@@ -148,7 +148,9 @@ void MeasurementBar::updateLabels() {
         const Result &res = results[ch];
         for (int m = 0; m < COUNT; ++m) {
             if (!selected(ch, m)) continue;
-            parts << QString("%1 %2").arg(shortName(m), used && res.valid ? format(m, res.v[m]) : QString("---"));
+            QString nm = shortName(m);
+            if (scope->unit(ch) == UNIT_AMPERE && m == VPP) nm = "Ipp";
+            parts << QString("%1 %2").arg(nm, used && res.valid ? format(m, res.v[m], scope->unit(ch)) : QString("---"));
         }
         labels[ch]->setVisible(used && !parts.isEmpty());
         labels[ch]->setText(QString("CH%1   ").arg(ch + 1) + parts.join("    "));

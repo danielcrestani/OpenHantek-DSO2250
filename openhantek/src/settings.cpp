@@ -127,6 +127,18 @@ void DsoSettings::load() {
             double p = store->value("probe").toDouble();
             if (p == 1.0 || p == 10.0 || p == 50.0 || p == 100.0) scope.voltage[channel].probe = p;
         }
+        if (store->contains("sensor")) {
+            const unsigned idx = store->value("sensor").toUInt();
+            if (idx < probeSensors().size()) {
+                scope.voltage[channel].sensor = idx;
+                scope.voltage[channel].probe = probeSensors()[idx].factor;
+                scope.voltage[channel].current = probeSensors()[idx].current;
+            }
+        } else {
+            for (unsigned idx = 0; idx < probeSensors().size(); ++idx)
+                if (!probeSensors()[idx].current && probeSensors()[idx].factor == scope.voltage[channel].probe)
+                    scope.voltage[channel].sensor = idx;
+        }
         if (store->contains("offset")) scope.voltage[channel].offset = store->value("offset").toDouble();
         if (store->contains("trigger")) scope.voltage[channel].trigger = store->value("trigger").toDouble();
         if (store->contains("used")) scope.voltage[channel].used = store->value("used").toBool();
@@ -261,6 +273,7 @@ void DsoSettings::save() {
         store->setValue("couplingOrMathIndex", scope.voltage[channel].couplingOrMathIndex);
         store->setValue("inverted", scope.voltage[channel].inverted);
         store->setValue("probe", scope.voltage[channel].probe);
+        store->setValue("sensor", scope.voltage[channel].sensor);
         store->setValue("offset", scope.voltage[channel].offset);
         store->setValue("trigger", scope.voltage[channel].trigger);
         store->setValue("used", scope.voltage[channel].used);

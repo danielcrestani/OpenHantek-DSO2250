@@ -245,6 +245,7 @@ void GraphGenerator::generateGraphsTYspectrum(PPresult *result) {
             result->spectrumAxis.dbPerDiv = magnitude;
             result->spectrumAxis.offset = offset;
             result->spectrumAxis.channel = channel;
+            result->spectrumAxis.current = scope->unit(channel) == UNIT_AMPERE;
         }
 
         // Markers of the fundamental and of the salient harmonics (only those inside the screen)

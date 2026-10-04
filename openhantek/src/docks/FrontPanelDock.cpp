@@ -30,9 +30,8 @@
 #include "viewconstants.h"
 #include "viewsettings.h"
 
-static const double probeValues[] = {1.0, 10.0, 50.0, 100.0};
 
-static QString fmtVolts(double v) { return valueToString(v, UNIT_VOLTS, 3); }
+static QString fmtValue(double v, Unit unit) { return valueToString(v, unit, 3); }
 
 FrontPanelDock::FrontPanelDock(DsoSettingsScope *scope, const Dso::ControlSpecification *spec,
                                HantekDsoControl *dsoControl, VoltageDock *voltageDock, HorizontalDock *horizontalDock,
@@ -158,16 +157,28 @@ QGroupBox *FrontPanelDock::makeChannelBox(ChannelID ch) {
     u.invertButton = makeButton(tr("INV"), tr("Inverter o sinal"), true);
     u.probeGroup = new QButtonGroup(this);
     u.probeGroup->setExclusive(true);
+    // Ponteiras de tensão (x1..x100) e garras de corrente Hantek (CC-65 / CC-650): mesmo grupo exclusivo
     QHBoxLayout *probeRow = new QHBoxLayout();
     probeRow->setSpacing(3);
-    for (int i = 0; i < 4; ++i) {
-        QPushButton *b = makeButton(QString("x%1").arg(probeValues[i]),
-                                    tr("Atenuação da ponteira (igual à chave da ponteira)"), true);
+    QGridLayout *clampGrid = new QGridLayout();
+    clampGrid->setSpacing(3);
+    const std::vector<ProbeSensor> &sensors = probeSensors();
+    int clampPos = 0;
+    for (unsigned i = 0; i < sensors.size(); ++i) {
+        QString tip = QString::fromUtf8(sensors[i].tip);
+        tip += sensors[i].current ? tr("\nA tela passa a mostrar corrente (A/div, Ipp, A RMS...).\n"
+                                       "Ajuste o zero da garra antes de medir DC.")
+                                  : tr("\nUse a mesma posição da chave da ponteira.");
+        QPushButton *b = makeButton(QString::fromUtf8(sensors[i].label), tip, true);
         b->setStyleSheet(QString("QPushButton { padding: 4px 2px; } QPushButton:checked { background: %1; color: #000;"
                                  " font-weight: bold; }")
                              .arg(channelColorCss(ch)));
-        u.probeGroup->addButton(b, i);
-        probeRow->addWidget(b);
+        u.probeGroup->addButton(b, (int)i);
+        if (sensors[i].current) {
+            clampGrid->addWidget(b, clampPos / 2, clampPos % 2);
+            ++clampPos;
+        } else
+            probeRow->addWidget(b);
     }
 
     QPushButton *vUp = makeButton(QString::fromUtf8("▲"), tr("Aumentar V/div (sinal menor na tela)"));
@@ -186,7 +197,8 @@ QGroupBox *FrontPanelDock::makeChannelBox(ChannelID ch) {
     g->addWidget(u.onButton, 0, 0, 1, 2);
     g->addWidget(u.couplingButton, 0, 2);
     g->addWidget(u.invertButton, 0, 3);
-    g->addWidget(new QLabel(tr("V/div")), 1, 0);
+    u.vdivTitle = new QLabel(tr("V/div"));
+    g->addWidget(u.vdivTitle, 1, 0);
     g->addWidget(vDown, 1, 1);
     g->addWidget(u.vdivLabel, 1, 2);
     g->addWidget(vUp, 1, 3);
@@ -200,6 +212,8 @@ QGroupBox *FrontPanelDock::makeChannelBox(ChannelID ch) {
     g->addLayout(posRow, 2, 1, 1, 3);
     g->addWidget(new QLabel(tr("Ponteira")), 3, 0);
     g->addLayout(probeRow, 3, 1, 1, 3);
+    g->addWidget(new QLabel(tr("Garra")), 4, 0);
+    g->addLayout(clampGrid, 4, 1, 1, 3);
     g->setColumnStretch(2, 1);
 
     connect(u.onButton, &QPushButton::clicked, [this, ch](bool checked) { voltageDock->selectUsed(ch, checked); });
@@ -216,7 +230,7 @@ QGroupBox *FrontPanelDock::makeChannelBox(ChannelID ch) {
     connect(pDown, &QPushButton::clicked, [this, ch]() { stepOffset(ch, -0.25); });
     connect(pZero, &QPushButton::clicked, [this, ch]() { stepOffset(ch, -scope->voltage[ch].offset); });
     connect(u.probeGroup, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), [this, ch](int index) {
-        if (index >= 0 && index < 4) changeProbe(ch, probeValues[index]);
+        if (index >= 0 && (size_t)index < probeSensors().size()) changeProbe(ch, (unsigned)index);
     });
     return box;
 }
@@ -235,9 +249,20 @@ void FrontPanelDock::stepOffset(ChannelID ch, double delta) {
     refresh();
 }
 
-void FrontPanelDock::changeProbe(ChannelID ch, double probe) {
+void FrontPanelDock::changeProbe(ChannelID ch, unsigned sensor) {
+    const ProbeSensor &sn = probeSensors()[sensor];
     const double old = scope->voltage[ch].probe;
-    if (probe == old) return;
+    const double probe = sn.factor;
+    scope->voltage[ch].sensor = sensor;
+    scope->voltage[ch].current = sn.current;
+    if (probe == old) {
+        // same factor, maybe other unit (x10 -> CC-65 20A): only the labels change
+        voltageDock->updateGainLabels(ch);
+        dsoWidget->updateVoltageGain(ch);
+        dsoWidget->refreshScopes();
+        refresh();
+        return;
+    }
     scope->voltage[ch].probe = probe;
     dsoControl->setProbe(ch, probe);
     dsoControl->setGain(ch, scope->gain(ch) * DIVS_VOLTAGE);
@@ -502,10 +527,11 @@ void FrontPanelDock::showData(std::shared_ptr<PPresult> data) {
             l->setVisible(scope->spectrum[ch].used);
             continue;
         }
-        QString t = tr("%1  F %2  %3 dBV")
+        QString t = tr("%1  F %2  %3 dB%4")
                         .arg(scope->spectrum[ch].name)
                         .arg(valueToString(dc->specPeakFreq, UNIT_HERTZ, 5))
-                        .arg(QString::number(dc->specPeakDbV, 'f', 2));
+                        .arg(QString::number(dc->specPeakDbV, 'f', 2))
+                        .arg(scope->unitSymbol(ch));
         if (dc->specThd >= 0) t += tr("  THD %1%").arg(QString::number(dc->specThd, 'f', dc->specThd < 10 ? 2 : 1));
         // harmonics that stand out of the noise, strongest first (max. 6)
         std::vector<SpectrumHarmonic> hs;
@@ -539,13 +565,11 @@ void FrontPanelDock::refresh() {
         if (v.couplingOrMathIndex < spec->couplings.size())
             u.couplingButton->setText(Dso::couplingString(spec->couplings[v.couplingOrMathIndex]));
         u.invertButton->setChecked(v.inverted);
-        u.vdivLabel->setText(valueToString(scope->gain(ch), UNIT_VOLTS, 3) + "/div");
+        u.vdivLabel->setText(valueToString(scope->gain(ch), scope->unit(ch), 3) + "/div");
+        u.vdivTitle->setText(scope->unitSymbol(ch) + tr("/div"));
         u.posLabel->setText(QString("%1 div").arg(v.offset, 0, 'f', 2));
-        for (int i = 0; i < 4; ++i)
-            if (probeValues[i] == v.probe) {
-                QAbstractButton *b = u.probeGroup->button(i);
-                if (b && !b->isChecked()) b->setChecked(true);
-            }
+        if (QAbstractButton *b = u.probeGroup->button((int)v.sensor))
+            if (!b->isChecked()) b->setChecked(true);
 
     }
 
@@ -565,7 +589,8 @@ void FrontPanelDock::refresh() {
     if (scope->trigger.special)
         triggerLevelLabel->setText(tr("externo"));
     else if (scope->trigger.source < spec->channels)
-        triggerLevelLabel->setText(fmtVolts(scope->voltage[scope->trigger.source].trigger));
+        triggerLevelLabel->setText(
+            fmtValue(scope->voltage[scope->trigger.source].trigger, scope->unit(scope->trigger.source)));
 }
 
 // ---------------------------------------------------------------- TELA
@@ -825,7 +850,13 @@ void FrontPanelDock::refreshSpectrum() {
     }
     if (!scope->spectrum.empty())
         dbDivLabel->setText(QString("%1 dB/div").arg(scope->spectrum[0].magnitude, 0, 'g', 3));
-    refLabel->setText(QString("%1 dBV").arg(post->spectrumReference, 0, 'f', 0));
+    bool allCurrent = false;
+    for (ChannelID c = 0; c < scope->spectrum.size(); ++c)
+        if (scope->spectrum[c].used) {
+            allCurrent = scope->unit(c) == UNIT_AMPERE;
+            if (!allCurrent) break;
+        }
+    refLabel->setText(QString("%1 dB%2").arg(post->spectrumReference, 0, 'f', 0).arg(allCurrent ? "A" : "V"));
     fbaseLabel->setText(valueToString(scope->horizontal.frequencybase, UNIT_HERTZ, 3));
     avgButton->setText(post->spectrumAverage > 1 ? tr("Média: %1x").arg(post->spectrumAverage) : tr("Média: desl."));
     avgButton->setStyleSheet(post->spectrumAverage > 1 ? "QPushButton { background: #2f6fbf; border-color: #5a95e0; }"

@@ -37,7 +37,7 @@ bool LegacyExportDrawer::exportSamples(const PPresult *result, QPaintDevice* pai
 
     // Print trigger details
     painter.setPen(colorValues->voltage[settings->scope.trigger.source]);
-    QString levelString = valueToString(settings->scope.voltage[settings->scope.trigger.source].trigger, UNIT_VOLTS, 3);
+    QString levelString = valueToString(settings->scope.voltage[settings->scope.trigger.source].trigger, settings->scope.unit(settings->scope.trigger.source), 3);
     QString pretriggerString = tr("%L1%").arg((int)(settings->scope.trigger.position * 100 + 0.5));
     painter.drawText(QRectF(0, 0, lineHeight * 10, lineHeight),
                      tr("%1  %2  %3  %4")
@@ -87,7 +87,7 @@ bool LegacyExportDrawer::exportSamples(const PPresult *result, QPaintDevice* pai
 
                 // Print voltage gain
                 painter.drawText(QRectF(lineHeight * 6, top, stretchBase * 2, lineHeight),
-                                 valueToString(settings->scope.gain(channel), UNIT_VOLTS, 0) + tr("/div"),
+                                 valueToString(settings->scope.gain(channel), settings->scope.unit(channel), 0) + tr("/div"),
                                  QTextOption(Qt::AlignRight));
                 // Print spectrum magnitude
                 if (settings->scope.spectrum[channel].used) {
@@ -101,7 +101,7 @@ bool LegacyExportDrawer::exportSamples(const PPresult *result, QPaintDevice* pai
                 // Amplitude string representation (4 significant digits)
                 painter.setPen(colorValues->text);
                 painter.drawText(QRectF(lineHeight * 6 + stretchBase * 4, top, stretchBase * 3, lineHeight),
-                                 valueToString(result->data(channel)->computeAmplitude(), UNIT_VOLTS, 4),
+                                 valueToString(result->data(channel)->computeAmplitude(), settings->scope.unit(channel), 4),
                                  QTextOption(Qt::AlignRight));
                 // Frequency string representation (5 significant digits)
                 painter.drawText(QRectF(lineHeight * 6 + stretchBase * 7, top, stretchBase * 3, lineHeight),

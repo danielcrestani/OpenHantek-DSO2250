@@ -123,7 +123,7 @@ void SpectrumMarkerOverlay::paintEvent(QPaintEvent *) {
             const double db = axis.ref + (ydiv - DIVS_VOLTAGE / 2 - axis.offset) * axis.dbPerDiv;
             const double py = j / (double)DIVS_VOLTAGE * H;
             p.drawText(QRectF(3, py + 1, 120, th), Qt::AlignLeft | Qt::AlignVCenter,
-                       QString::number(db, 'f', axis.dbPerDiv < 1 ? 1 : 0) + QStringLiteral(" dBV"));
+                       QString::number(db, 'f', axis.dbPerDiv < 1 ? 1 : 0) + (axis.current ? QStringLiteral(" dBA") : QStringLiteral(" dBV")));
         }
     }
 

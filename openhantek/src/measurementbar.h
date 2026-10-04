@@ -53,7 +53,7 @@ class MeasurementBar : public QWidget {
     };
     static QString name(int m);
     static QString shortName(int m);
-    static QString format(int m, double value);
+    static QString format(int m, double value, Unit unit = UNIT_VOLTS);
     static Result analyze(const std::vector<double> &samples, double interval, double fallbackFreq);
     void updateLabels();
     void saveSelection();

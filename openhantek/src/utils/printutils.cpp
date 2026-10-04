@@ -14,6 +14,20 @@ QString valueToString(double value, Unit unit, int precision) {
     char format = (precision < 0) ? 'g' : 'f';
 
     switch (unit) {
+    case UNIT_AMPERE: {
+        // Current string representation (current clamps)
+        int logarithm = floor(log10(fabs(value)));
+        if (fabs(value) < 1e-3)
+            return QApplication::tr("%L1 µA").arg(value / 1e-6, 0, format,
+                                                  (precision <= 0) ? precision
+                                                                   : qBound(0, precision - 7 - logarithm, precision));
+        else if (fabs(value) < 1.0)
+            return QApplication::tr("%L1 mA").arg(value / 1e-3, 0, format,
+                                                  (precision <= 0) ? precision : (precision - 4 - logarithm));
+        else
+            return QApplication::tr("%L1 A").arg(value, 0, format,
+                                                 (precision <= 0) ? precision : qMax(0, precision - 1 - logarithm));
+    }
     case UNIT_VOLTS: {
         // Voltage string representation
         int logarithm = floor(log10(fabs(value)));
@@ -138,6 +152,7 @@ double stringToValue(const QString &text, Unit unit, bool *ok) {
 
     if (ok) *ok = true;
     switch (unit) {
+    case UNIT_AMPERE:
     case UNIT_VOLTS: {
         // Voltage string decoding
         if (unitString.startsWith("µ"))

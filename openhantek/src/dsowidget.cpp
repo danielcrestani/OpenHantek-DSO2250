@@ -412,7 +412,7 @@ void DsoWidget::updateMarkerDetails() {
             cursorDataGrid->updateInfo(index, true,
                 scope->voltage[channel].cursor.shape != DsoSettingsScopeCursor::NONE ? tr("ON") : tr("OFF"),
                 valueToString(fabs(p1.x() - p0.x()) * scope->horizontal.timebase, UNIT_SECONDS, 4),
-                valueToString(fabs(p1.y() - p0.y()) * scope->gain(channel), UNIT_VOLTS, 4));
+                valueToString(fabs(p1.y() - p0.y()) * scope->gain(channel), scope->unit(channel), 4));
         } else {
             cursorDataGrid->updateInfo(index, false);
         }
@@ -450,7 +450,7 @@ void DsoWidget::updateTriggerDetails() {
     QPalette tablePalette = palette();
     tablePalette.setColor(QPalette::WindowText, view->screen.voltage[scope->trigger.source]);
     settingsTriggerLabel->setPalette(tablePalette);
-    QString levelString = valueToString(scope->voltage[scope->trigger.source].trigger, UNIT_VOLTS, 3);
+    QString levelString = valueToString(scope->voltage[scope->trigger.source].trigger, scope->unit(scope->trigger.source), 3);
     QString pretriggerString = tr("%L1%").arg((int)(scope->trigger.position * 100 + 0.5));
     settingsTriggerLabel->setText(tr("%1  %2  %3  %4")
                                       .arg(scope->voltage[scope->trigger.source].name,
@@ -466,7 +466,7 @@ void DsoWidget::updateVoltageDetails(ChannelID channel) {
     setMeasurementVisible(channel);
 
     if (scope->voltage[channel].used)
-        measurementGainLabel[channel]->setText(valueToString(scope->gain(channel), UNIT_VOLTS, 3) + tr("/div"));
+        measurementGainLabel[channel]->setText(valueToString(scope->gain(channel), scope->unit(channel), 3) + tr("/div"));
     else
         measurementGainLabel[channel]->setText(QString());
 }
@@ -633,7 +633,7 @@ void DsoWidget::showNew(std::shared_ptr<PPresult> data) {
         if (scope->voltage[channel].used && data.get()->data(channel)) {
             // Amplitude string representation (4 significant digits)
             measurementAmplitudeLabel[channel]->setText(
-                valueToString(data.get()->data(channel)->computeAmplitude(), UNIT_VOLTS, 4));
+                valueToString(data.get()->data(channel)->computeAmplitude(), scope->unit(channel), 4));
             // Frequency string representation (5 significant digits)
             measurementFrequencyLabel[channel]->setText(
                 valueToString(data.get()->data(channel)->frequency, UNIT_HERTZ, 5));

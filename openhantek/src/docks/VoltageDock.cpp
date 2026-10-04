@@ -145,7 +145,7 @@ void VoltageDock::updateGainLabels(ChannelID channel) {
     const int current = box->currentIndex();
     box->clear();
     for (double gainStep : scope->gainSteps)
-        box->addItem(valueToString(gainStep * scope->voltage[channel].probe, UNIT_VOLTS, 0));
+        box->addItem(valueToString(gainStep * scope->voltage[channel].probe, scope->unit(channel), 0));
     box->setCurrentIndex(current);
 }
 
