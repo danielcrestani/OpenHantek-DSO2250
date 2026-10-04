@@ -121,6 +121,7 @@ class FrontPanelDock : public QDockWidget {
     void autoSpectrum(ChannelID ch, const DataChannel *dc);
     std::vector<bool> fftAutoPending;
     QPushButton *harmButton = nullptr;
+    QPushButton *onlyButton = nullptr;
     QColor spectrumColor(ChannelID ch) const;
     QVBoxLayout *mainLayout = nullptr;
     SpectrumDock *spectrumDock = nullptr;

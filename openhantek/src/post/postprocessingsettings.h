@@ -50,4 +50,5 @@ struct DsoSettingsPostProcessing {
     bool spectrumPeakHold = false; ///< Keep the maximum of each frequency bin
     unsigned spectrumReset = 0;    ///< Incremented to clear average / peak hold
     bool spectrumShowHarmonics = true; ///< Mark fundamental and salient harmonics on screen
+    bool spectrumOnly = false;         ///< Hide the time-domain traces while a spectrum is shown
 };

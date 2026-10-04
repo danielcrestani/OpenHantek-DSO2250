@@ -11,6 +11,7 @@
 #include <QMouseEvent>
 #include <QOpenGLShaderProgram>
 #include <QPainter>
+#include <QFontMetrics>
 
 #include <QOpenGLFunctions>
 
@@ -19,6 +20,7 @@
 #include "post/graphgenerator.h"
 #include "post/ppresult.h"
 #include "scopesettings.h"
+#include "utils/printutils.h"
 #include "viewconstants.h"
 #include "viewsettings.h"
 
@@ -82,24 +84,53 @@ SpectrumMarkerOverlay::SpectrumMarkerOverlay(QWidget *parent) : QWidget(parent) 
 }
 
 void SpectrumMarkerOverlay::setMarkers(const std::vector<std::vector<PPresult::SpectrumMarker>> &m,
-                                       const std::vector<QColor> &c) {
+                                       const std::vector<QColor> &c, const PPresult::SpectrumAxis &a) {
     markers = m;
     colors = c;
+    axis = a;
     update();
 }
 
 void SpectrumMarkerOverlay::paintEvent(QPaintEvent *) {
-    bool any = false;
+    bool any = axis.valid;
     for (const auto &ch : markers) any = any || !ch.empty();
     if (!any) return;
 
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing, true);
+    const double W = width(), H = height();
+
+    // Axis labels of the spectrum: frequency on each vertical line, dBV on each horizontal line
+    if (axis.valid && axis.fbase > 0) {
+        QColor col = axis.channel < colors.size() ? colors[axis.channel] : QColor(Qt::white);
+        col.setAlpha(210);
+        QFont fa = font();
+        fa.setPointSizeF(7.5);
+        p.setFont(fa);
+        p.setPen(col);
+        const int th = QFontMetrics(fa).height();
+        for (int i = 0; i <= (int)DIVS_TIME; ++i) {
+            const double px = i / (double)DIVS_TIME * W;
+            const QString t = i == 0 ? QStringLiteral("0 Hz") : valueToString(i * axis.fbase, UNIT_HERTZ, 3);
+            QRectF r(px - 50, H - th - 2, 100, th);
+            Qt::Alignment al = Qt::AlignHCenter;
+            if (i == 0) r = QRectF(px + 3, H - th - 2, 100, th), al = Qt::AlignLeft;
+            if (i == (int)DIVS_TIME) r = QRectF(px - 103, H - th - 2, 100, th), al = Qt::AlignRight;
+            p.drawText(r, al | Qt::AlignVCenter, t);
+        }
+        for (int j = 0; j < (int)DIVS_VOLTAGE; ++j) { // skip the bottom line (frequency labels are there)
+            const double ydiv = DIVS_VOLTAGE / 2 - j;
+            const double db = axis.ref + (ydiv - DIVS_VOLTAGE / 2 - axis.offset) * axis.dbPerDiv;
+            const double py = j / (double)DIVS_VOLTAGE * H;
+            p.drawText(QRectF(3, py + 1, 120, th), Qt::AlignLeft | Qt::AlignVCenter,
+                       QString::number(db, 'f', axis.dbPerDiv < 1 ? 1 : 0) + QStringLiteral(" dBV"));
+        }
+    }
+
     QFont f = font();
     f.setPointSizeF(8.5);
     f.setBold(true);
     p.setFont(f);
-    const double W = width(), H = height();
     for (size_t ch = 0; ch < markers.size(); ++ch) {
         QColor col = ch < colors.size() ? colors[ch] : QColor(Qt::white);
         col.setAlpha(255);
@@ -334,7 +365,7 @@ void GlScope::initializeGL() {
 void GlScope::showData(std::shared_ptr<PPresult> data) {
     if (markerOverlay) {
         if (!zoomed && data && scope->horizontal.format == Dso::GraphFormat::TY)
-            markerOverlay->setMarkers(data->spectrumMarkers, view->screen.spectrum);
+            markerOverlay->setMarkers(data->spectrumMarkers, view->screen.spectrum, data->spectrumAxis);
         else
             markerOverlay->setMarkers({}, {});
     }

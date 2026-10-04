@@ -30,7 +30,7 @@ class SpectrumMarkerOverlay : public QWidget {
   public:
     explicit SpectrumMarkerOverlay(QWidget *parent);
     void setMarkers(const std::vector<std::vector<PPresult::SpectrumMarker>> &markers,
-                    const std::vector<QColor> &colors);
+                    const std::vector<QColor> &colors, const PPresult::SpectrumAxis &axis = PPresult::SpectrumAxis());
 
   protected:
     void paintEvent(QPaintEvent *event) override;
@@ -38,6 +38,7 @@ class SpectrumMarkerOverlay : public QWidget {
   private:
     std::vector<std::vector<PPresult::SpectrumMarker>> markers;
     std::vector<QColor> colors;
+    PPresult::SpectrumAxis axis;
 };
 
 /// \brief OpenGL accelerated widget that displays the oscilloscope screen.

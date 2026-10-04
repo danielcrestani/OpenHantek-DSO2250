@@ -190,6 +190,7 @@ void GraphGenerator::generateGraphsTYspectrum(PPresult *result) {
     ready = true;
     result->vaChannelSpectrum.resize(scope->spectrum.size());
     result->spectrumMarkers.assign(scope->spectrum.size(), {});
+    result->spectrumAxis = PPresult::SpectrumAxis();
     for (ChannelID channel = 0; channel < scope->voltage.size(); ++channel) {
         ChannelGraph &target = result->vaChannelSpectrum[channel];
         const SampleValues &samples = useSpecSamplesOf(channel, result, scope);
@@ -237,6 +238,15 @@ void GraphGenerator::generateGraphsTYspectrum(PPresult *result) {
             for (size_t k = 0; k < count; ++k) target.push_back(QVector3D(toX((double)k), toY(samples.sample[k]), 0.0f));
         }
 
+        if (!result->spectrumAxis.valid) {
+            result->spectrumAxis.valid = true;
+            result->spectrumAxis.fbase = scope->horizontal.frequencybase;
+            result->spectrumAxis.ref = ref;
+            result->spectrumAxis.dbPerDiv = magnitude;
+            result->spectrumAxis.offset = offset;
+            result->spectrumAxis.channel = channel;
+        }
+
         // Markers of the fundamental and of the salient harmonics (only those inside the screen)
         if (postprocessing && postprocessing->spectrumShowHarmonics && result->data(channel) &&
             channel < result->spectrumMarkers.size()) {
@@ -261,6 +271,9 @@ void GraphGenerator::process(PPresult *data) {
         ready = true;
         generateGraphsTYspectrum(data);
         generateGraphsTYvoltage(data);
+        // "Só FFT": hide the time traces while some spectrum is on
+        if (postprocessing && postprocessing->spectrumOnly && data->spectrumAxis.valid)
+            for (ChannelGraph &g : data->vaChannelVoltage) g.clear();
     } else
         generateGraphsXY(data, scope);
 }

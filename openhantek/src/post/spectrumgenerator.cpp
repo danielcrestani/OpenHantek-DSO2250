@@ -135,16 +135,30 @@ void SpectrumGenerator::process(PPresult *result) {
         }
 
         updateWindow(sampleCount);
-        updatePlans(sampleCount);
 
         const size_t n = sampleCount;
-        const size_t half = n / 2;
-        const double binWidth = 1.0 / channelData->voltage.interval / (double)n; // Hz per bin
+        // Zero padding: when only a few bins fall on the screen the trace would be a chain of triangles.
+        // Padding interpolates the spectrum (smooth lobes like a bench analyzer); it does not change
+        // the resolution nor the levels. Same factor for every channel of a frame (plans are shared).
+        size_t zp = 1;
+        bool anySpectrum = false;
+        for (ChannelID c = 0; c < scope->spectrum.size(); ++c) anySpectrum = anySpectrum || scope->spectrum[c].used;
+        if (anySpectrum && scope->horizontal.frequencybase > 0) {
+            const double visibleBins =
+                DIVS_TIME * scope->horizontal.frequencybase * channelData->voltage.interval * (double)n;
+            while (visibleBins * (double)zp < 2000.0 && zp < 16 && n * zp * 2 <= (size_t)4194304) zp *= 2;
+        }
+        const size_t nfft = n * zp;
+        updatePlans(nfft);
+
+        const size_t half = nfft / 2;
+        const double binWidth = 1.0 / channelData->voltage.interval / (double)nfft; // Hz per bin
 
         // Window + FFT
         const double *samples = channelData->voltage.sample.data();
         for (size_t i = 0; i < n; ++i) inBuffer[i] = lastWindowBuffer[i] * samples[i];
-        fftw_execute(forwardPlan); // outBuffer: half-complex r0 r1 .. r(n/2) i((n+1)/2-1) .. i1
+        for (size_t i = n; i < nfft; ++i) inBuffer[i] = 0.0;
+        fftw_execute(forwardPlan); // outBuffer: half-complex r0 r1 .. r(N/2) i((N+1)/2-1) .. i1
 
         // ---- Frequency of the signal (autocorrelation, as before) ----
         {
@@ -153,16 +167,16 @@ void SpectrumGenerator::process(PPresult *result) {
             size_t position;
             for (position = 1; position < half; ++position)
                 acBuffer[position] = (outBuffer[position] * outBuffer[position] +
-                                      outBuffer[n - position] * outBuffer[n - position]) *
+                                      outBuffer[nfft - position] * outBuffer[nfft - position]) *
                                      correctionFactor;
             acBuffer[half] = outBuffer[half] * outBuffer[half] * correctionFactor;
-            for (++position; position < n; ++position) acBuffer[position] = 0;
+            for (++position; position < nfft; ++position) acBuffer[position] = 0;
             fftw_execute(inversePlan);
 
             double minimumCorrelation = corrBuffer[0];
             double peakCorrelation = 0;
             size_t peakPosition = 0;
-            for (size_t p = 1; p < half; ++p) {
+            for (size_t p = 1; p < n / 2; ++p) { // lags in samples (padding does not change them)
                 if (corrBuffer[p] > peakCorrelation && corrBuffer[p] > minimumCorrelation * 2) {
                     peakCorrelation = corrBuffer[p];
                     peakPosition = p;
@@ -186,9 +200,9 @@ void SpectrumGenerator::process(PPresult *result) {
         std::vector<double> power(bins);
         for (size_t k = 0; k < bins; ++k) {
             const double re = outBuffer[k];
-            const double im = (k > 0 && k < n - k) ? outBuffer[n - k] : 0.0;
+            const double im = (k > 0 && k < nfft - k) ? outBuffer[nfft - k] : 0.0;
             const double mag2 = (re * re + im * im) * norm * norm;
-            const bool single = (k == 0) || (n % 2 == 0 && k == half); // DC and Nyquist are not doubled
+            const bool single = (k == 0) || (nfft % 2 == 0 && k == half); // DC and Nyquist are not doubled
             power[k] = single ? mag2 : 2.0 * mag2;
         }
 
@@ -232,23 +246,29 @@ void SpectrumGenerator::process(PPresult *result) {
 
         // ---- Marker: strongest component in the displayed span (window independent level) ----
         // bins summed around a peak: enough for the main lobe of the selected window
-        size_t lobe;
+        // lobeMax: comfortable sum width; lobeMin: half width of the main lobe (cannot go below)
+        size_t lobeMax, lobeMin;
         switch (postprocessing->spectrumWindow) {
-        case Dso::WindowFunction::RECTANGULAR:
+        case Dso::WindowFunction::RECTANGULAR: lobeMax = 3; lobeMin = 1; break;
         case Dso::WindowFunction::HANN:
         case Dso::WindowFunction::HAMMING:
         case Dso::WindowFunction::COSINE:
         case Dso::WindowFunction::BARTLETT:
-        case Dso::WindowFunction::TRIANGULAR: lobe = 3; break;
-        case Dso::WindowFunction::FLATTOP: lobe = 6; break;
-        default: lobe = 5; break;
+        case Dso::WindowFunction::TRIANGULAR: lobeMax = 3; lobeMin = 2; break;
+        case Dso::WindowFunction::FLATTOP: lobeMax = 6; lobeMin = 5; break;
+        case Dso::WindowFunction::BLACKMAN: lobeMax = 4; lobeMin = 3; break;
+        default: lobeMax = 5; lobeMin = 4; break;
         }
+        lobeMax *= zp; // padded bins are zp times denser
+        lobeMin *= zp;
+        size_t lobe = lobeMax;
+        const double enbwBins = windowEnbw * (double)zp; // noise bandwidth in (padded) bins
         size_t kEnd = bins - 1;
         if (scope->horizontal.frequencybase > 0) {
             const double spanBins = DIVS_TIME * scope->horizontal.frequencybase / binWidth;
             if (spanBins < (double)kEnd) kEnd = (size_t)spanBins;
         }
-        const size_t kStart = lobe; // skip DC and its leakage
+        const size_t kStart = lobeMin + 1; // skip DC and its leakage
         channelData->specHarmonics.clear();
         if (kEnd > kStart + 2) {
             size_t kp = kStart;
@@ -260,7 +280,7 @@ void SpectrumGenerator::process(PPresult *result) {
                 const size_t b = std::min(bins - 1, center + lobe);
                 double s = 0.0;
                 for (size_t k = a; k <= b; ++k) s += P[k];
-                return s / windowEnbw; // Vrms^2 of the component
+                return s / enbwBins; // Vrms^2 of the component
             };
             auto toDb = [](double p) { return 10.0 * log10(std::max(p, 1e-30)); };
             auto interpolate = [&](size_t k) {
@@ -271,6 +291,8 @@ void SpectrumGenerator::process(PPresult *result) {
             };
 
             if (P[kp] > 0.0 && kp > 0 && kp + 1 < bins) {
+                // Harmonics are kp bins apart: shrink the summed width so neighbouring lobes do not overlap
+                if (kp >= 2 * lobeMin + 1) lobe = std::min(lobeMax, (kp - 1) / 2);
                 const double delta = interpolate(kp);
                 const double f0 = ((double)kp + delta) * binWidth;
                 const double p1 = lobePower(kp);
@@ -279,10 +301,12 @@ void SpectrumGenerator::process(PPresult *result) {
                 channelData->specPeakFreq = f0;
                 channelData->specPeakDbV = toDb(p1);
 
-                // Noise in one lobe: median bin power of the span x lobe width (robust against the peaks)
+                // Noise in one lobe: 20th percentile of the bins in the span x lobe width. A low percentile
+                // stays in the gaps even when a harmonic comb (square wave) covers half of the bins.
                 std::vector<double> tmp(P.begin() + (long)kStart, P.begin() + (long)kEnd + 1);
-                std::nth_element(tmp.begin(), tmp.begin() + (long)(tmp.size() / 2), tmp.end());
-                const double noiseLobe = tmp[tmp.size() / 2] * (double)(2 * lobe + 1) / windowEnbw;
+                const size_t q = tmp.size() / 5;
+                std::nth_element(tmp.begin(), tmp.begin() + (long)q, tmp.end());
+                const double noiseLobe = tmp[q] * (double)(2 * lobe + 1) / enbwBins;
 
                 SpectrumHarmonic fund;
                 fund.n = 1;
@@ -294,15 +318,16 @@ void SpectrumGenerator::process(PPresult *result) {
                 channelData->specHarmonics.push_back(fund);
 
                 // Harmonics 2..10 below Nyquist (THD) -- each one searched +-2 bins around n*f0
-                const bool separated = kp > 2 * lobe;
+                const bool separated = kp >= 2 * lobeMin + 1;
                 double ph = 0.0;
                 int harmonics = 0;
                 for (int h = 2; h <= 10 && separated; ++h) {
                     const double c = h * ((double)kp + delta);
-                    if (c + lobe + 2 >= (double)(bins - 1)) break;
+                    const size_t search = 2 * zp;
+                    if (c + lobe + search >= (double)(bins - 1)) break;
                     size_t kh = (size_t)std::lround(c);
                     size_t best = kh;
-                    for (size_t k = kh - 2; k <= kh + 2; ++k)
+                    for (size_t k = kh - search; k <= kh + search; ++k)
                         if (P[k] > P[best]) best = k;
                     const double phh = lobePower(best);
                     ph += phh;

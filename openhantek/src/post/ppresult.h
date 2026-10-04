@@ -68,6 +68,15 @@ class PPresult {
         double freq = 0, dbv = 0, dbc = 0;
     };
     std::vector<std::vector<SpectrumMarker>> spectrumMarkers;
+    /// Scale of the spectrum screen, for the axis labels
+    struct SpectrumAxis {
+        bool valid = false;
+        double fbase = 0;     ///< Hz/div
+        double ref = 0;       ///< dBV at the top line (without offset)
+        double dbPerDiv = 10; ///< dB/div
+        double offset = 0;    ///< trace offset in divs
+        ChannelID channel = 0;
+    } spectrumAxis;
     ChannelsGraphs vaChannelVoltage;
   private:
     std::vector<DataChannel> analyzedData; ///< The analyzed data for each channel

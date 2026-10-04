@@ -759,6 +759,14 @@ QGroupBox *FrontPanelDock::makeSpectrumBox() {
     g->addWidget(avgButton, row++, 2, 1, 2);
     g->addWidget(holdButton, row, 0, 1, 2);
     g->addWidget(clr, row++, 2, 1, 2);
+    onlyButton = makeButton(tr("Só FFT"), tr("Esconde os sinais no tempo enquanto a FFT está ligada "
+                                             "(a aquisição e o disparo continuam)"),
+                            true);
+    g->addWidget(onlyButton, row++, 0, 1, 4);
+    connect(onlyButton, &QPushButton::toggled, [this](bool on) {
+        post->spectrumOnly = on;
+        refresh();
+    });
     connect(autoFft, &QPushButton::clicked, [this]() {
         for (ChannelID ch = 0; ch < fftAutoPending.size(); ++ch)
             if (scope->spectrum[ch].used) fftAutoPending[ch] = true;
@@ -822,6 +830,10 @@ void FrontPanelDock::refreshSpectrum() {
     avgButton->setText(post->spectrumAverage > 1 ? tr("Média: %1x").arg(post->spectrumAverage) : tr("Média: desl."));
     avgButton->setStyleSheet(post->spectrumAverage > 1 ? "QPushButton { background: #2f6fbf; border-color: #5a95e0; }"
                                                        : QString());
+    if (onlyButton->isChecked() != post->spectrumOnly) {
+        QSignalBlocker blk(onlyButton);
+        onlyButton->setChecked(post->spectrumOnly);
+    }
     if (harmButton->isChecked() != post->spectrumShowHarmonics) {
         QSignalBlocker blk(harmButton);
         harmButton->setChecked(post->spectrumShowHarmonics);
@@ -855,12 +867,9 @@ void FrontPanelDock::stepFrequencybase(int dir) {
 
 void FrontPanelDock::spanToNyquist() {
     if (lastSampleInterval <= 0) return;
+    // 0 Hz .. Nyquist exactly over the 10 divisions (not rounded to 1-2-5, so the band fills the screen)
     const double nyquist = 0.5 / lastSampleInterval;
-    const double perDiv = nyquist / DIVS_TIME;
-    // smallest 1-2-5 value that shows the whole band
-    double f = nextOneTwoFive(perDiv * 0.9999, +1);
-    if (f / perDiv > 2.6) f = perDiv; // fallback, should not happen
-    horizontalDock->selectFrequencybase(std::max(1.0, std::min(100e6, f)));
+    horizontalDock->selectFrequencybase(std::max(1.0, std::min(100e6, nyquist / DIVS_TIME)));
     refresh();
 }
 
@@ -874,7 +883,7 @@ void FrontPanelDock::autoSpectrum(ChannelID ch, const DataChannel *dc) {
     if (f0 > 0 && f0 * 10.0 < nyquist) {
         fbase = nextOneTwoFive(f0 * 0.95, +1);
     } else {
-        fbase = nextOneTwoFive(nyquist / DIVS_TIME * 0.9999, +1);
+        fbase = nyquist / DIVS_TIME; // whole band on the screen
     }
     horizontalDock->selectFrequencybase(std::max(1.0, std::min(100e6, fbase)));
 
