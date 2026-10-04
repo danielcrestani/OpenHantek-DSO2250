@@ -12,6 +12,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QSignalBlocker>
 #include <QTimer>
 #include <QVBoxLayout>
 
@@ -353,6 +354,12 @@ QGroupBox *FrontPanelDock::makeTriggerBox() {
     g->addWidget(new QLabel(tr("Borda")), 4, 0, 1, 3);
     g->addWidget(sUp, 5, 0, 1, 1);
     g->addWidget(sDown, 5, 1, 1, 1);
+    hfRejectButton = makeButton(tr("REJ. AF"),
+                                tr("Rejeição de altas frequências no disparo: liga o filtro de disparo do\n"
+                                   "DSO-2250 e ignora ruído/componentes acima de ~50 kHz ao alinhar o traço"),
+                                true);
+    hfRejectButton->setChecked(scope->trigger.hfReject);
+    g->addWidget(hfRejectButton, 5, 2, 1, 1);
     g->addWidget(new QLabel(tr("Nível")), 6, 0, 1, 3);
     QHBoxLayout *lvlRow = new QHBoxLayout();
     lvlRow->addWidget(lDown);
@@ -374,6 +381,11 @@ QGroupBox *FrontPanelDock::makeTriggerBox() {
     });
     connect(slopeGroup, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), [this](int id) {
         triggerDock->selectSlope((Dso::Slope)id);
+        refresh();
+    });
+    connect(hfRejectButton, &QPushButton::toggled, [this](bool on) {
+        scope->trigger.hfReject = on;
+        dsoControl->setTriggerHFReject(on);
         refresh();
     });
     connect(lUp, &QPushButton::clicked, [this]() { stepTriggerLevel(+1); });
@@ -501,6 +513,10 @@ void FrontPanelDock::refresh() {
                                                                         : (int)scope->trigger.source))
         b->setChecked(true);
     if (QAbstractButton *b = slopeGroup->button((int)scope->trigger.slope)) b->setChecked(true);
+    if (hfRejectButton && hfRejectButton->isChecked() != scope->trigger.hfReject) {
+        QSignalBlocker blk(hfRejectButton);
+        hfRejectButton->setChecked(scope->trigger.hfReject);
+    }
 
     if (scope->trigger.special)
         triggerLevelLabel->setText(tr("externo"));

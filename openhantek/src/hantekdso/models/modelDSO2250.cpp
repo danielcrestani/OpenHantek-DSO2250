@@ -48,4 +48,5 @@ void ModelDSO2250::applyRequirements(HantekDsoControl *dsoControl) const {
     dsoControl->addCommand(new BulkSetBuffer2250(), false);
     dsoControl->addCommand(new ControlSetOffset(), false);
     dsoControl->addCommand(new ControlSetRelays(), false);
+    dsoControl->addCommand(new BulkSetFilter(), false);
 }

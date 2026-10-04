@@ -37,6 +37,7 @@ struct ControlSettingsTrigger {
     Dso::Slope slope = Dso::Slope::Positive;                     ///< The trigger slope
     bool special = false;                                        ///< true, if the trigger source is special
     unsigned int source = 0;                                     ///< The trigger source
+    bool hfReject = false;                                       ///< Trigger HF reject filter
 };
 
 /// \brief Stores the current amplification settings of the device.

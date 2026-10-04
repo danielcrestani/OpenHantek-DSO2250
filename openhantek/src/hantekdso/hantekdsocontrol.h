@@ -269,6 +269,8 @@ class HantekDsoControl : public QObject {
     /// \param slope The Slope that should cause a trigger.
     /// \return See ::Dso::ErrorCode.
     Dso::ErrorCode setTriggerSlope(Dso::Slope slope);
+    /// \brief Enable the hardware trigger filter (HF reject), if the model supports it.
+    Dso::ErrorCode setTriggerHFReject(bool enable);
     /// \brief Set the trigger position.
     /// \param position The new trigger position (in s).
     /// \return The trigger position that has been set.

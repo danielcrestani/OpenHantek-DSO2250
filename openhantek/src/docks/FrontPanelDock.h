@@ -99,6 +99,7 @@ class FrontPanelDock : public QDockWidget {
     QButtonGroup *modeGroup = nullptr;
     QButtonGroup *sourceGroup = nullptr;
     QButtonGroup *slopeGroup = nullptr;
+    QPushButton *hfRejectButton = nullptr;
     QTimer *refreshTimer = nullptr;
     QPushButton *gridButton = nullptr;
     QPushButton *interpButton = nullptr;

@@ -997,6 +997,15 @@ Dso::ErrorCode HantekDsoControl::setTriggerSlope(Dso::Slope slope) {
     return Dso::ErrorCode::NONE;
 }
 
+Dso::ErrorCode HantekDsoControl::setTriggerHFReject(bool enable) {
+    controlsettings.trigger.hfReject = enable;
+    if (!device->isConnected()) return Dso::ErrorCode::CONNECTION;
+    // SETFILTER (0x00 0x0f bits): bit0 CH1, bit1 CH2, bit2 trigger -- same as dsoSetFilt in SDK2250.dll
+    if (!command[(uint8_t)BulkCode::SETFILTER]) return Dso::ErrorCode::UNSUPPORTED;
+    modifyCommand<BulkSetFilter>(BulkCode::SETFILTER)->setTrigger(enable);
+    return Dso::ErrorCode::NONE;
+}
+
 void HantekDsoControl::forceTrigger() { modifyCommand<BulkCommand>(BulkCode::FORCETRIGGER); }
 
 Dso::ErrorCode HantekDsoControl::setPretriggerPosition(double position) {

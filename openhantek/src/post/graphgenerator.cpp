@@ -55,6 +55,26 @@ void GraphGenerator::generateGraphsTYvoltage(PPresult *result) {
             const double hf = src.interval / scope->horizontal.timebase;
             const double *d = src.sample.data();
             const size_t n = src.sample.size();
+            // Rejeição de AF: média móvel centrada (corte de -3 dB em ~50 kHz) só para localizar o disparo.
+            // Simétrica, então não desloca o instante do cruzamento; ruído e componentes rápidas deixam de
+            // gerar cruzamentos falsos que fazem o traço "pular".
+            std::vector<double> smooth;
+            if (scope->trigger.hfReject) {
+                size_t win = (size_t)(0.443 / (50e3 * src.interval));
+                win = std::min(win, n / 8);
+                if (win >= 3) {
+                    win |= 1; // odd -> centered
+                    const size_t h = win / 2;
+                    smooth.resize(n);
+                    std::vector<double> pre(n + 1, 0.0);
+                    for (size_t i = 0; i < n; ++i) pre[i + 1] = pre[i] + d[i];
+                    for (size_t i = 0; i < n; ++i) {
+                        const size_t a = i >= h ? i - h : 0, b = std::min(n, i + h + 1);
+                        smooth[i] = (pre[b] - pre[a]) / (double)(b - a);
+                    }
+                    d = smooth.data();
+                }
+            }
             size_t visible = (size_t)std::min<double>((double)n - 1, std::ceil(DIVS_TIME / hf) + 2.0);
             const double expected = scope->trigger.position * DIVS_TIME / hf;
             const double level = scope->voltage[scope->trigger.source].trigger;
