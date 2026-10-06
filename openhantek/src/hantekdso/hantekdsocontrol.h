@@ -174,6 +174,8 @@ class HantekDsoControl : public QObject {
 
   private:
     /// Pointers to bulk/control commands
+    bool zeroCorrectionEnabled = true;
+    double zeroCorrection(ChannelID channel) const;
     BulkCommand *command[255] = {0};
     BulkCommand *firstBulkCommand = nullptr;
     ControlCommand *control[255] = {0};
@@ -271,6 +273,12 @@ class HantekDsoControl : public QObject {
     Dso::ErrorCode setTriggerSlope(Dso::Slope slope);
     /// \brief Enable the hardware trigger filter (HF reject), if the model supports it.
     Dso::ErrorCode setTriggerHFReject(bool enable);
+    /// Zero calibration (offset DAC error of this unit), per channel and hardware gain, in fractions of full scale:
+    /// error = a + b * (offsetReal - 0.5). Applied to the samples and to the trigger level.
+    void setZeroCalibration(ChannelID channel, unsigned gainId, double a, double b);
+    void setZeroCorrectionEnabled(bool enabled) { zeroCorrectionEnabled = enabled; }
+    unsigned gainCount() const { return (unsigned)specification->gain.size(); }
+    double gainFullScale(unsigned gainId) const { return specification->gain[gainId].gainSteps; }
     /// \brief Set the trigger position.
     /// \param position The new trigger position (in s).
     /// \return The trigger position that has been set.

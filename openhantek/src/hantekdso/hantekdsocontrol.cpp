@@ -244,7 +244,7 @@ void HantekDsoControl::convertRawDataToSamples(const std::vector<unsigned char> 
 
         const unsigned gainID = controlsettings.voltage[channel].gain;
         const unsigned short limit = specification->voltageLimit[channel][gainID];
-        const double offset = controlsettings.voltage[channel].offsetReal;
+        const double offset = controlsettings.voltage[channel].offsetReal + zeroCorrection(channel);
         const double gainStep = specification->gain[gainID].gainSteps;
 
         // Convert data from the oscilloscope and write it into the sample buffer
@@ -277,7 +277,7 @@ void HantekDsoControl::convertRawDataToSamples(const std::vector<unsigned char> 
 
             const unsigned gainID = controlsettings.voltage[channel].gain;
             const unsigned short limit = specification->voltageLimit[channel][gainID];
-            const double offset = controlsettings.voltage[channel].offsetReal;
+            const double offset = controlsettings.voltage[channel].offsetReal + zeroCorrection(channel);
             const double gainStep = specification->gain[gainID].gainSteps;
             int shiftDataBuf = 0;
 
@@ -953,7 +953,7 @@ Dso::ErrorCode HantekDsoControl::setTriggerLevel(ChannelID channel, double level
 
     // Never get out of the limits
     const unsigned gainID = controlsettings.voltage[channel].gain;
-    const double offsetReal = controlsettings.voltage[channel].offsetReal;
+    const double offsetReal = controlsettings.voltage[channel].offsetReal + zeroCorrection(channel);
     const double gainStep = specification->gain[gainID].gainSteps;
     const double hwLevel = level / controlsettings.voltage[channel].probe; // level is given at the probe tip
     const unsigned short levelValue = qBound(
@@ -1372,4 +1372,24 @@ int HantekDsoControl::getPacketSize() const {
     } else if (s < 0)
         return s;
     return 0;
+}
+
+// ---------------------------------------------------------------- zero calibration
+void HantekDsoControl::setZeroCalibration(ChannelID channel, unsigned gainId, double a, double b) {
+    if (channel >= specification->channels || gainId >= specification->gain.size()) return;
+    ControlSettingsVoltage &v = controlsettings.voltage[channel];
+    if (v.zeroA.size() < specification->gain.size()) {
+        v.zeroA.resize(specification->gain.size(), 0.0);
+        v.zeroB.resize(specification->gain.size(), 0.0);
+    }
+    v.zeroA[gainId] = a;
+    v.zeroB[gainId] = b;
+    setTriggerLevel(channel, controlsettings.trigger.level[channel]);
+}
+
+double HantekDsoControl::zeroCorrection(ChannelID channel) const {
+    if (!zeroCorrectionEnabled || channel >= specification->channels) return 0.0;
+    const ControlSettingsVoltage &v = controlsettings.voltage[channel];
+    if (v.gain >= v.zeroA.size()) return 0.0;
+    return v.zeroA[v.gain] + v.zeroB[v.gain] * (v.offsetReal - 0.5);
 }

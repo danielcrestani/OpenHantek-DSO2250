@@ -114,7 +114,19 @@ Botão **● REG** na barra (clique = iniciar/parar; seta = configurar) ou **Arq
 
 **Arquivo → Abrir/Salvar configuração** guarda todas as escalas e opções num arquivo `.ini`.
 
-## 12. Limitações conhecidas
+## 12. Calibrar zero (Osciloscópio → Calibrar zero dos canais)
+
+Com nada ligado às entradas, o traço deve ficar exatamente na linha da sua posição. Cada DSO-2250 tem um
+pequeno erro no ajuste de posição, diferente em cada V/div — o traço fica alguns décimos de divisão fora.
+
+1. Desconecte as ponteiras (ou ligue a ponta de cada ponteira ao próprio jacaré).
+2. **Osciloscópio → Calibrar zero dos canais...** — leva cerca de meio minuto.
+3. Pronto: a correção fica salva e é aplicada sempre (traço, medições, cursores e nível do trigger).
+
+Refaça de tempos em tempos ou se o aparelho estiver bem mais quente/frio. **Apagar calibração de zero** volta
+a usar só a calibração de fábrica.
+
+## 13. Limitações conhecidas
 
 - A banda analógica do DSO-2250 é bem menor que a taxa de amostragem; acima de ~30 MHz a amplitude cai e os
   dois canais diferem alguns por cento.

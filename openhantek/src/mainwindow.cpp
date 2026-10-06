@@ -15,6 +15,7 @@
 #include "dsomodel.h"
 #include "dsowidget.h"
 #include "datalogger.h"
+#include "zerocalibration.h"
 #include "hantekdsocontrol.h"
 #include "usb/usbdevice.h"
 #include "viewconstants.h"
@@ -361,6 +362,20 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, QWid
     setupCursorMenu();
     setupExportAndLog();
 
+    // Calibração de zero dos canais (erro do DAC de posição deste aparelho)
+    zeroCal = new ZeroCalibration(dsoControl, &mSettings->scope, deviceSpec, this);
+    zeroCal->loadAndApply();
+    ui->menuOscilloscope->addSeparator();
+    QAction *calZero = ui->menuOscilloscope->addAction(tr("Calibrar zero dos canais..."));
+    calZero->setStatusTip(tr("Com as entradas em 0 V, mede e corrige o desvio do traço em cada V/div e posição"));
+    connect(calZero, &QAction::triggered, [this]() { zeroCal->start(); });
+    QAction *calClear = ui->menuOscilloscope->addAction(tr("Apagar calibração de zero"));
+    connect(calClear, &QAction::triggered, [this]() {
+        if (QMessageBox::question(this, tr("Apagar calibração de zero"),
+                                  tr("Voltar a usar só a calibração gravada no aparelho?")) == QMessageBox::Yes)
+            zeroCal->clear();
+    });
+
     connect(ui->actionAbout, &QAction::triggered, [this]() {
         QMessageBox::about(
             this, tr("Sobre o OpenHantek DSO-2250"),
@@ -413,7 +428,8 @@ MainWindow::~MainWindow() { delete ui; }
 
 void MainWindow::showNewData(std::shared_ptr<PPresult> data) {
     lastData = data;
-    if (logger) logger->process(data);
+    if (zeroCal && zeroCal->running()) zeroCal->process(data);
+    else if (logger) logger->process(data);
     dsoWidget->showNew(data);
     if (frontPanel) frontPanel->showData(data);
     if (measurementBar) measurementBar->showData(data);

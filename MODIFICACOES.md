@@ -16,6 +16,8 @@ Cada alteração está num commit separado, a partir de `836cd98`. Resumo por á
   todas as escalas de 10 mV/div a 5 V/div funcionam.
 - Atenuação de ponteira tratada no núcleo: o ganho do hardware é dividido pela atenuação e as amostras,
   o nível de disparo e as medições ficam na ponta da ponteira.
+- Calibração de zero dos canais (erro do DAC de posição por V/div e posição), salva e aplicada às amostras e ao
+  nível do trigger.
 - Filtro de disparo do DSO-2250 (comando `0x00 0x0f`, bit do trigger — igual ao `dsoSetFilt` do SDK) para a
   rejeição de altas frequências.
 

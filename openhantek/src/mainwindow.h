@@ -54,6 +54,7 @@ class MainWindow : public QMainWindow {
     // Settings used for the whole program
     DsoSettings *mSettings;
     DataLogger *logger = nullptr;
+    class ZeroCalibration *zeroCal = nullptr;
     const Dso::ControlSpecification *deviceSpec = nullptr;
     QToolButton *recButton = nullptr;
     void setupExportAndLog();
