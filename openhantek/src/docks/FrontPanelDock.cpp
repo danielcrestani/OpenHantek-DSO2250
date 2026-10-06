@@ -188,17 +188,23 @@ QGroupBox *FrontPanelDock::makeChannelBox(ChannelID ch) {
     u.probeGroup = new QButtonGroup(this);
     u.probeGroup->setExclusive(true);
     // Ponteiras de tensão (x1..x100) e garras de corrente Hantek (CC-65 / CC-650): mesmo grupo exclusivo
-    QHBoxLayout *probeRow = new QHBoxLayout();
+    QGridLayout *probeRow = new QGridLayout(); // ponteiras de tensão, 4 por linha, em ordem crescente
     probeRow->setSpacing(3);
     QGridLayout *clampGrid = new QGridLayout();
     clampGrid->setSpacing(3);
     const std::vector<ProbeSensor> &sensors = probeSensors();
-    int clampPos = 0;
-    for (unsigned i = 0; i < sensors.size(); ++i) {
+    std::vector<unsigned> order(sensors.size());
+    for (unsigned i = 0; i < sensors.size(); ++i) order[i] = i;
+    std::stable_sort(order.begin(), order.end(), [&sensors](unsigned a, unsigned b) {
+        if (sensors[a].current != sensors[b].current) return !sensors[a].current;
+        return sensors[a].current ? false : sensors[a].factor < sensors[b].factor;
+    });
+    int clampPos = 0, probePos = 0;
+    for (unsigned i : order) {
         QString tip = QString::fromUtf8(sensors[i].tip);
         tip += sensors[i].current ? tr("\nA tela passa a mostrar corrente (A/div, Ipp, A RMS...).\n"
                                        "Ajuste o zero da garra antes de medir DC.")
-                                  : tr("\nUse a mesma posição da chave da ponteira.");
+                                  : tr("\nUse a mesma posição da chave da ponteira/sonda.");
         QPushButton *b = makeButton(QString::fromUtf8(sensors[i].label), tip, true);
         b->setStyleSheet(QString("QPushButton { padding: 4px 2px; } QPushButton:checked { background: %1; color: #000;"
                                  " font-weight: bold; }")
@@ -207,8 +213,10 @@ QGroupBox *FrontPanelDock::makeChannelBox(ChannelID ch) {
         if (sensors[i].current) {
             clampGrid->addWidget(b, clampPos / 2, clampPos % 2);
             ++clampPos;
-        } else
-            probeRow->addWidget(b);
+        } else {
+            probeRow->addWidget(b, probePos / 4, probePos % 4);
+            ++probePos;
+        }
     }
 
     QPushButton *vUp = makeButton(QString::fromUtf8("▲"), tr("Aumentar V/div (sinal menor na tela)"));

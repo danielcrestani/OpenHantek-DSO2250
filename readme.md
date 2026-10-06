@@ -24,7 +24,7 @@ parecida com a de um osciloscópio de bancada.
   DC/AC, INV, V/div, posição, ponteira; Horizontal (tempo/div, pré-disparo, memória); Trigger (AUTO/NORMAL/ÚNICO,
   fonte, borda, REJ. AF, nível, 50 %); FFT.
 - RUN/STOP, SINGLE, AUTOSET e FORCE na barra do topo.
-- Ponteiras x1/x10/x50/x100 e **garras de corrente Hantek CC-65 e CC-650** — a tela, as medições, a FFT e o
+- Ponteiras x1/x10/x20/x50/x100/x200/x500/x1000 (inclui sondas diferenciais) e **garras de corrente Hantek CC-65 e CC-650** — a tela, as medições, a FFT e o
   registro passam a mostrar ampères.
 - Medições no rodapé, na cor do canal, escolhidas no menu **Medições** (Vpp, máx, mín, média, RMS, RMS AC,
   frequência, período, ciclo ativo, larguras, subida, descida).

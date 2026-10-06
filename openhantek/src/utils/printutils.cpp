@@ -24,9 +24,12 @@ QString valueToString(double value, Unit unit, int precision) {
         else if (fabs(value) < 1.0)
             return QApplication::tr("%L1 mA").arg(value / 1e-3, 0, format,
                                                   (precision <= 0) ? precision : (precision - 4 - logarithm));
-        else
+        else if (fabs(value) < 1000.0)
             return QApplication::tr("%L1 A").arg(value, 0, format,
                                                  (precision <= 0) ? precision : qMax(0, precision - 1 - logarithm));
+        else
+            return QApplication::tr("%L1 kA").arg(value / 1e3, 0, format,
+                                                  (precision <= 0) ? precision : qMax(0, precision + 2 - logarithm));
     }
     case UNIT_VOLTS: {
         // Voltage string representation
@@ -38,9 +41,12 @@ QString valueToString(double value, Unit unit, int precision) {
         else if (fabs(value) < 1.0)
             return QApplication::tr("%L1 mV").arg(value / 1e-3, 0, format,
                                                   (precision <= 0) ? precision : (precision - 4 - logarithm));
-        else
+        else if (fabs(value) < 1000.0)
             return QApplication::tr("%L1 V").arg(value, 0, format,
                                                  (precision <= 0) ? precision : qMax(0, precision - 1 - logarithm));
+        else
+            return QApplication::tr("%L1 kV").arg(value / 1e3, 0, format,
+                                                  (precision <= 0) ? precision : qMax(0, precision + 2 - logarithm));
     }
     case UNIT_DECIBEL:
         // Power level string representation
@@ -155,7 +161,9 @@ double stringToValue(const QString &text, Unit unit, bool *ok) {
     case UNIT_AMPERE:
     case UNIT_VOLTS: {
         // Voltage string decoding
-        if (unitString.startsWith("µ"))
+        if (unitString.startsWith('k'))
+            return value * 1e3;
+        else if (unitString.startsWith("µ"))
             return value * 1e-6;
         else if (unitString.startsWith('m'))
             return value * 1e-3;

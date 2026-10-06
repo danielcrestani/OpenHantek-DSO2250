@@ -82,7 +82,12 @@ inline const std::vector<ProbeSensor> &probeSensors() {
         {"CC65 20A", "Garra Hantek CC-65, chave em 20 A: 100 mV/A (até 20 A)", 10.0, true},
         {"CC65 65A", "Garra Hantek CC-65, chave em 65 A: 10 mV/A (até 65 A)", 100.0, true},
         {"CC650 60A", "Garra Hantek CC-650, chave em 60 A: 10 mV/A (até 60 A)", 100.0, true},
-        {"CC650 650A", "Garra Hantek CC-650, chave em 650 A: 1 mV/A (até 650 A)", 1000.0, true}};
+        {"CC650 650A", "Garra Hantek CC-650, chave em 650 A: 1 mV/A (até 650 A)", 1000.0, true},
+        // sondas diferenciais / alta tensão (acrescentadas no fim para não mudar os índices já salvos)
+        {"x20", "Sonda x20 (ex.: diferencial na faixa 1:20)", 20.0, false},
+        {"x200", "Sonda x200 (ex.: diferencial na faixa 1:200)", 200.0, false},
+        {"x500", "Sonda x500 (ex.: diferencial na faixa 1:500)", 500.0, false},
+        {"x1000", "Sonda x1000 (ex.: diferencial na faixa 1:1000)", 1000.0, false}};
     return sensors;
 }
 

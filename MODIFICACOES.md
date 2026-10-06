@@ -32,6 +32,7 @@ Cada alteração está num commit separado, a partir de `836cd98`. Resumo por á
 ## Interface
 - Painel frontal (dock) estilo osciloscópio, com seções recolhíveis; RUN/STOP, SINGLE, AUTOSET e FORCE na
   barra de ferramentas.
+- Ponteiras/sondas diferenciais x20, x200, x500 e x1000; escalas em kV.
 - Garras de corrente Hantek CC-65 (100 mV/A e 10 mV/A) e CC-650 (10 mV/A e 1 mV/A) com unidade em ampères.
 - Rodapé de medições por canal, menu Medições, menu Cursores com leitura no rodapé.
 - Menus, configurações e mensagens em português; cores aplicadas sem reiniciar; seletor de cor do Qt

@@ -28,7 +28,9 @@ Clique no título de uma seção do painel (▾/▸) para recolhê-la; o program
 
 - **LIGADO**, **DC/AC** (acoplamento), **INV** (inverte).
 - **V/div ▼▲** e **Posição ▼▲ 0**.
-- **Ponteira**: x1, x10, x50, x100 — use a mesma posição da chave da ponteira.
+- **Ponteira**: x1, x10, x20, x50, x100, x200, x500, x1000 — use a mesma relação da chave da ponteira ou da
+  sonda diferencial. Com x500/x1000 a escala vai até 5 kV/div (mostrada em kV).
+  Para medir na rede elétrica use **sonda diferencial** (o DSO-2250 não é isolado).
 - **Garra**: CC65 20A (100 mV/A), CC65 65A (10 mV/A), CC650 60A (10 mV/A), CC650 650A (1 mV/A).
   Com uma garra, o canal mostra ampères em tudo (A/div, Ipp, RMS, FFT em dBA, registro).
   A chave da garra precisa estar na mesma faixa do botão; zere a garra antes de medir DC.
