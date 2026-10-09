@@ -3,7 +3,9 @@
 // so the look can be checked in CI (QT_QPA_PLATFORM=offscreen).
 
 #include <QApplication>
+#include <QComboBox>
 #include <QDir>
+#include <QFile>
 #include <QDoubleSpinBox>
 #include <QLineEdit>
 #include <QPushButton>
@@ -30,8 +32,15 @@ static void save(QWidget *w, const QString &name, QSize size) {
     w->grab().scaledToWidth(std::min(size.width(), 900), Qt::SmoothTransformation).save(name, "JPG", 72);
 }
 
+static void logMessage(QtMsgType, const QMessageLogContext &, const QString &msg) {
+    fprintf(stderr, "qt: %s\n", qPrintable(msg)); // stylesheet parse errors end up here
+}
+
 int main(int argc, char *argv[]) {
+    qInstallMessageHandler(logMessage);
     QApplication app(argc, argv);
+    for (const char *f : {":/style/arrow-down@2x.png", ":/style/arrow-up@2x.png"})
+        fprintf(stderr, "resource %s: %s\n", f, QFile::exists(f) ? "ok" : "MISSING");
     darkstyle::applyApplicationLook(app);
     const QString dir = argc > 1 ? argv[1] : QString(".");
     QDir().mkpath(dir);
@@ -47,9 +56,11 @@ int main(int argc, char *argv[]) {
         QSignalBlocker b(spins[i]);
         spins[i]->setValue(values[i]);
     }
-    const auto edits = gen.findChildren<QLineEdit *>();
-    for (QLineEdit *e : edits)
-        if (e->alignment() & Qt::AlignRight) e->setText(e == edits.first() ? "1" : "25,786");
+    // the frequency fields: right-aligned line edits that are not inside a spin box or a combo box
+    for (QLineEdit *e : gen.findChildren<QLineEdit *>())
+        if ((e->alignment() & Qt::AlignRight) && !qobject_cast<QAbstractSpinBox *>(e->parent()) &&
+            !qobject_cast<QComboBox *>(e->parent()))
+            e->setText("25,786");
     const auto buttons = gen.findChildren<QPushButton *>();
     for (QPushButton *b : buttons)
         if (b->isCheckable()) {

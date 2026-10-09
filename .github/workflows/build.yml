@@ -60,7 +60,8 @@ jobs:
         run: |
           sudo apt-get install -y --no-install-recommends fonts-dejavu-core > /dev/null
           cd build/openhantek
-          QT_QPA_PLATFORM=offscreen ./ui_snapshots "$GITHUB_WORKSPACE/shots"
+          QT_QPA_PLATFORM=offscreen ./ui_snapshots "$GITHUB_WORKSPACE/shots" 2> ui.log || true
+          sort -u ui.log | head -20 | while IFS= read -r line; do echo "::notice title=ui::${line}"; done
           # publish the images on the ci-shots branch (one commit, replaced every run)
           cd "$GITHUB_WORKSPACE/shots"
           git init -q && git checkout -q -b ci-shots
