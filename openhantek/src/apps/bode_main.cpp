@@ -15,6 +15,7 @@
 #include "hantekdso/dsomodel.h"
 #include "hantekdso/hantekdsocontrol.h"
 #include "selectdevice/selectsupporteddevice.h"
+#include "style/darkstyle.h"
 #include "usb/libusbexit.h"
 #include "usb/usbdevice.h"
 
@@ -24,6 +25,7 @@ int main(int argc, char *argv[]) {
     QCoreApplication::setApplicationName("OpenHantek Bode");
     QCoreApplication::setApplicationVersion(VERSION);
     QApplication app(argc, argv);
+    darkstyle::applyApplicationLook(app);
 
     QTranslator qtTranslator; // Portuguese for the Qt standard dialogs
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)

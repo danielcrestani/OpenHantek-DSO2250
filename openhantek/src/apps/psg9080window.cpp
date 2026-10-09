@@ -7,6 +7,7 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -23,6 +24,7 @@
 
 #include "generator/GeneratorPanel.h"
 #include "generator/psg9080.h"
+#include "style/darkstyle.h"
 
 // ------------------------------------------------------------------------------------------------ PresetDialog
 PresetDialog::PresetDialog(QWidget *parent, const QString &name, int scope, const QStringList &existing)
@@ -30,6 +32,7 @@ PresetDialog::PresetDialog(QWidget *parent, const QString &name, int scope, cons
     setWindowTitle(tr("Salvar preset"));
     setMinimumWidth(440);
     setAutoFillBackground(true); // some themes leave dialogs see-through otherwise
+    setStyleSheet(darkstyle::panelSheet());
 
     nameEdit = new QLineEdit(name);
     nameEdit->setPlaceholderText(tr("ex.: quadrada 1 kHz 5 V"));
@@ -128,8 +131,9 @@ Psg9080Window::Psg9080Window(QWidget *parent) : QMainWindow(parent), gen(new Psg
     applyButton = new QPushButton(tr("Aplicar"));
     saveButton = new QPushButton(tr("Salvar atual…"));
     deleteButton = new QPushButton(tr("Excluir"));
-    QHBoxLayout *presets = new QHBoxLayout;
-    presets->addWidget(new QLabel(tr("Presets")));
+    QGroupBox *presetGroup = new QGroupBox(tr("Presets"));
+    darkstyle::colorSection(presetGroup, darkstyle::violet());
+    QHBoxLayout *presets = new QHBoxLayout(presetGroup);
     presets->addWidget(presetBox, 1);
     presets->addWidget(targetLabel);
     presets->addWidget(targetBox);
@@ -138,9 +142,11 @@ Psg9080Window::Psg9080Window(QWidget *parent) : QMainWindow(parent), gen(new Psg
     presets->addWidget(deleteButton);
 
     QWidget *root = new QWidget;
+    root->setStyleSheet(darkstyle::panelSheet());
     QVBoxLayout *layout = new QVBoxLayout(root);
+    layout->setContentsMargins(8, 6, 8, 8);
     layout->addWidget(panel, 1);
-    layout->addLayout(presets);
+    layout->addWidget(presetGroup);
     setCentralWidget(root);
 
     connect(presetBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int) { presetSelected(); });

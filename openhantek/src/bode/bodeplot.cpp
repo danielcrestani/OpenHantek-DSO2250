@@ -11,8 +11,8 @@
 
 namespace {
 
-const QColor kGainColor(0xe6, 0xb8, 0x00);
-const QColor kPhaseColor(0x2f, 0xa8, 0xd8);
+const QColor kGainColor(0xf0, 0x8c, 0x2e); // orange
+const QColor kPhaseColor(0x3f, 0xb8, 0xe0); // blue
 
 QString freqLabel(double f) {
     struct {
@@ -101,9 +101,9 @@ void BodePlot::gainRange(double &lo, double &hi) const {
 void BodePlot::paintEvent(QPaintEvent *) {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing, true);
-    p.fillRect(rect(), palette().color(QPalette::Base));
+    p.fillRect(rect(), Qt::black); // like the OpenHantek screen
 
-    const double left = 58, right = 16, top = 10, bottom = 30, gap = 26;
+    const double left = 58, right = 22, top = 10, bottom = 46, gap = 26;
     const double h = (height() - top - bottom - gap) / 2.0;
     gainPane.rect = QRectF(left, top, width() - left - right, h);
     phasePane.rect = QRectF(left, top + h + gap, width() - left - right, h);
@@ -189,9 +189,10 @@ void BodePlot::drawPane(QPainter &p, const Pane &pane, bool gain, const QString 
     p.setFont(bold);
     p.drawText(r.adjusted(6, 4, 0, 0), Qt::AlignLeft | Qt::AlignTop, title + " (" + unit + ")");
     p.setFont(font());
-    if (!gain) {
-        p.setPen(text);
-        p.drawText(QRectF(r.right() - 80, r.bottom() + 3, 80, 16), Qt::AlignRight | Qt::AlignTop, tr("frequência"));
+    if (!gain) { // axis caption centered under the frequency labels
+        p.setPen(palette().color(QPalette::PlaceholderText));
+        p.drawText(QRectF(r.left(), r.bottom() + 22, r.width(), 18), Qt::AlignHCenter | Qt::AlignTop,
+                   tr("Frequência (Hz)"));
     }
 
     // Curve: lines between consecutive valid points, dots on every valid point

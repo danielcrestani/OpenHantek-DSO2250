@@ -36,6 +36,7 @@
 #include "generator/GeneratorPanel.h"
 #include "generator/psg9080.h"
 #include "hantekdso/hantekdsocontrol.h"
+#include "style/darkstyle.h"
 
 namespace {
 
@@ -85,6 +86,7 @@ BodeWindow::BodeWindow(HantekDsoControl *dsoControl, const Dso::ControlSpecifica
     progress->setValue(0);
     statusLabel = new QLabel;
     statusLabel->setWordWrap(true);
+    statusLabel->setMinimumHeight(20);
 
     QWidget *right = new QWidget;
     QVBoxLayout *rightLayout = new QVBoxLayout(right);
@@ -98,12 +100,15 @@ BodeWindow::BodeWindow(HantekDsoControl *dsoControl, const Dso::ControlSpecifica
     scroll->setWidget(settingsPanel);
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
-    scroll->setMinimumWidth(settingsPanel->minimumSizeHint().width() + 20);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff); // the panel fits; only vertical scrolling
+    scroll->setMinimumWidth(std::max(390, settingsPanel->minimumSizeHint().width() + 24));
 
     QSplitter *split = new QSplitter(Qt::Horizontal);
     split->addWidget(scroll);
     split->addWidget(right);
     split->setStretchFactor(1, 1);
+    split->setStyleSheet(darkstyle::panelSheet());
+    rightLayout->setContentsMargins(4, 6, 6, 6);
     setCentralWidget(split);
 
     watchdog = new QTimer(this);
@@ -134,8 +139,10 @@ BodeWindow::BodeWindow(HantekDsoControl *dsoControl, const Dso::ControlSpecifica
 // ------------------------------------------------------------------------------------------------ interface
 QWidget *BodeWindow::makeSettings() {
     QWidget *panel = new QWidget;
+    panel->setObjectName("bodeSettings");
     QVBoxLayout *v = new QVBoxLayout(panel);
-    v->setContentsMargins(0, 0, 6, 0);
+    v->setContentsMargins(6, 4, 8, 6);
+    v->setSpacing(6);
 
     auto freqRow = [](QLineEdit *&edit, QComboBox *&unit) {
         edit = new QLineEdit;
@@ -185,6 +192,7 @@ QWidget *BodeWindow::makeSettings() {
     gf->addRow(tr("Sinal de teste"), genChannelBox);
     gf->addRow(tr("Amplitude"), amplitudeBox);
     gf->addRow(tr("Offset"), offsetBox);
+    darkstyle::colorSection(genBox, darkstyle::orange());
     connect(portRefresh, &QPushButton::clicked, this, &BodeWindow::refreshPorts);
     connect(connectButton, &QPushButton::clicked, this, &BodeWindow::toggleGenerator);
     v->addWidget(genBox);
@@ -213,6 +221,7 @@ QWidget *BodeWindow::makeSettings() {
     sf->addRow(tr("Ponteira CH2"), probeBox[1]);
     sf->addRow(tr("Acoplamento"), couplingBox);
     sf->addRow(tr("Memória"), memoryBox);
+    darkstyle::colorSection(scopeBox, darkstyle::blue());
     auto scopeChanged = [this]() {
         if (sweeping) return;
         updateRoles();
@@ -240,7 +249,9 @@ QWidget *BodeWindow::makeSettings() {
     wf->addRow(tr("Média por ponto"), averagesBox);
     limitsLabel = new QLabel;
     limitsLabel->setWordWrap(true);
+    limitsLabel->setProperty("role", "hint");
     wf->addRow(limitsLabel);
+    darkstyle::colorSection(sweep, darkstyle::violet());
     v->addWidget(sweep);
 
     // Calibration
@@ -256,6 +267,8 @@ QWidget *BodeWindow::makeSettings() {
     cl->addWidget(useCalibrationBox);
     cl->addWidget(calibrationLabel);
     cl->addWidget(calibrateButton);
+    calibrationLabel->setProperty("role", "hint");
+    darkstyle::colorSection(cal, darkstyle::gray());
     connect(calibrateButton, &QPushButton::clicked, this, [this]() {
         const auto answer = QMessageBox::question(
             this, tr("Calibrar"),
@@ -269,10 +282,7 @@ QWidget *BodeWindow::makeSettings() {
 
     // Actions
     startButton = new QPushButton(tr("Iniciar"));
-    startButton->setMinimumHeight(34);
-    QFont bold = startButton->font();
-    bold.setBold(true);
-    startButton->setFont(bold);
+    darkstyle::styleRunButton(startButton, false);
     connect(startButton, &QPushButton::clicked, this, [this]() {
         if (sweeping)
             finish(false, tr("Varredura interrompida."));
@@ -355,13 +365,14 @@ bool BodeWindow::readFrequency(QLineEdit *edit, QComboBox *unit, double &hz) con
 }
 
 void BodeWindow::status(const QString &text, bool error) {
-    statusLabel->setStyleSheet(error ? "color: #c0392b;" : "");
+    statusLabel->setStyleSheet(error ? "color: #ff6b5b;" : "color: #c8ccd4;");
     statusLabel->setText(text);
 }
 
 void BodeWindow::setUiRunning(bool run) {
     for (QGroupBox *w : settingsPanel->findChildren<QGroupBox *>()) w->setEnabled(!run);
-    startButton->setText(run ? tr("Parar") : tr("Iniciar"));
+    startButton->setText(run ? tr("■  Parar") : tr("▶  Iniciar"));
+    darkstyle::styleRunButton(startButton, run);
     csvButton->setEnabled(!run && !results.empty());
     imageButton->setEnabled(!run && !results.empty());
     copyButton->setEnabled(!results.empty());
@@ -398,7 +409,7 @@ void BodeWindow::toggleGenerator() {
         return;
     }
     if (!gen->open(portBox->currentText().trimmed())) {
-        generatorState->setStyleSheet("color: #c0392b;");
+        generatorState->setStyleSheet("color: #ff6b5b;");
         generatorState->setText(gen->lastError());
         return;
     }
@@ -410,7 +421,7 @@ void BodeWindow::updateGeneratorUi() {
     connectButton->setText(open ? tr("Desconectar") : tr("Conectar"));
     portBox->setEnabled(!open);
     portRefresh->setEnabled(!open);
-    generatorState->setStyleSheet(open ? "color: #2e9d4a;" : "");
+    generatorState->setStyleSheet(open ? "color: #4fbf62;" : "color: #9aa1ab;");
     generatorState->setText(open ? tr("Conectado em %1.").arg(gen->portName())
                                  : tr("Não conectado. Feche o programa PSG9080 se ele estiver usando a porta."));
 }

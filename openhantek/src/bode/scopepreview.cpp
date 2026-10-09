@@ -2,6 +2,8 @@
 
 #include "scopepreview.h"
 
+#include "style/darkstyle.h"
+
 #include <QPainter>
 #include <QPainterPath>
 
@@ -9,7 +11,7 @@
 #include <cmath>
 
 namespace {
-const QColor kChannelColor[2] = {QColor(0xe6, 0xb8, 0x00), QColor(0x2f, 0xa8, 0xd8)};
+const QColor kChannelColor[2] = {QColor(darkstyle::scopeChannel(0)), QColor(darkstyle::scopeChannel(1))};
 
 QString siText(double v, const QString &unit) {
     const struct {
@@ -40,7 +42,7 @@ void ScopePreview::setRoles(const QString &ch1, const QString &ch2) {
 
 void ScopePreview::paintEvent(QPaintEvent *) {
     QPainter p(this);
-    p.fillRect(rect(), QColor(0x10, 0x14, 0x18));
+    p.fillRect(rect(), Qt::black); // like the OpenHantek screen
     const QRectF r = QRectF(rect()).adjusted(4, 4, -4, -20);
 
     // Grid: 10 x 8 divisions

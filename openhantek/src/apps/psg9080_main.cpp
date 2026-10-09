@@ -7,12 +7,14 @@
 #include <QTranslator>
 
 #include "psg9080window.h"
+#include "style/darkstyle.h"
 
 int main(int argc, char *argv[]) {
     QCoreApplication::setOrganizationName("psg9080-gui");
     QCoreApplication::setApplicationName("PSG9080");
     QCoreApplication::setApplicationVersion(VERSION);
     QApplication app(argc, argv);
+    darkstyle::applyApplicationLook(app);
 
     QTranslator qtTranslator; // Portuguese for the Qt standard dialogs
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)

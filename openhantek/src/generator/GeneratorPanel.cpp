@@ -2,6 +2,8 @@
 
 #include "GeneratorPanel.h"
 
+#include "style/darkstyle.h"
+
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
@@ -90,14 +92,14 @@ GeneratorPanel::GeneratorPanel(Psg9080 *generator, Qt::Orientation channels, QWi
     ui.resize(2);
     QBoxLayout *channelBox = channels == Qt::Horizontal ? static_cast<QBoxLayout *>(new QHBoxLayout)
                                                         : static_cast<QBoxLayout *>(new QVBoxLayout);
-    channelBox->addWidget(makeChannel(1, "#e6b800"));
-    channelBox->addWidget(makeChannel(2, "#2fa8d8"));
+    channelBox->addWidget(makeChannel(1, darkstyle::generatorChannel(0)));
+    channelBox->addWidget(makeChannel(2, darkstyle::generatorChannel(1)));
     layout->addLayout(channelBox);
 
     readButton = new QPushButton(tr("Ler do gerador"));
     readButton->setToolTip(tr("Atualiza o painel com os valores atuais do gerador"));
     allOffButton = new QPushButton(tr("Desligar saídas"));
-    allOffButton->setStyleSheet("QPushButton { color: #c0392b; font-weight: bold; }");
+    allOffButton->setStyleSheet("QPushButton { color: #ff6b5b; font-weight: bold; }");
     QHBoxLayout *actions = new QHBoxLayout;
     actions->addWidget(readButton);
     actions->addWidget(allOffButton);
@@ -130,17 +132,11 @@ GeneratorPanel::GeneratorPanel(Psg9080 *generator, Qt::Orientation channels, QWi
 QGroupBox *GeneratorPanel::makeChannel(int channel, const QString &color) {
     ChannelUi &c = ui[channel - 1];
     c.box = new QGroupBox(tr("CH%1").arg(channel));
-    c.box->setStyleSheet(QString("QGroupBox { font-weight: bold; border: 2px solid %1; border-radius: 5px; "
-                                 "margin-top: 9px; padding-top: 6px; }"
-                                 "QGroupBox::title { color: %1; subcontrol-origin: margin; left: 8px; }")
-                             .arg(color));
+    darkstyle::colorSection(c.box, color);
 
     c.output = new QPushButton(tr("SAÍDA DESLIGADA"));
     c.output->setCheckable(true);
-    c.output->setMinimumHeight(30);
-    c.output->setStyleSheet("QPushButton { font-weight: bold; border-radius: 4px; background: #555; color: #ddd; }"
-                            "QPushButton:checked { background: #2e9d4a; color: white; }"
-                            "QPushButton:disabled { background: #333; color: #777; }");
+    c.output->setStyleSheet(darkstyle::channelOnButtonSheet(color)); // lit in the channel color, like OpenHantek
     connect(c.output, &QPushButton::clicked, this, [this, channel](bool on) {
         bool a = false, b = false;
         if (gen->setOutput(channel, on) && gen->readOutputs(a, b)) {
@@ -163,6 +159,10 @@ QGroupBox *GeneratorPanel::makeChannel(int channel, const QString &color) {
 
     c.frequency = new QLineEdit;
     c.frequency->setAlignment(Qt::AlignRight);
+    QFont mono("monospace");
+    mono.setStyleHint(QFont::Monospace);
+    mono.setPointSizeF(11);
+    c.frequency->setFont(mono);
     c.unit = new QComboBox;
     for (int i = 0; i < 5; ++i) c.unit->addItem(QString::fromUtf8(kUnitNames[i]), (int)kUnits[i]);
     connect(c.frequency, &QLineEdit::editingFinished, this, [this, channel]() {
@@ -324,7 +324,7 @@ void GeneratorPanel::apply(int channel, bool ok) {
 }
 
 void GeneratorPanel::message(const QString &text, bool error) {
-    status->setStyleSheet(error ? "color: #c0392b;" : "");
+    status->setStyleSheet(error ? "color: #ff6b5b;" : "color: #9aa1ab;");
     status->setText(text);
     emit statusMessage(text, error);
 }
