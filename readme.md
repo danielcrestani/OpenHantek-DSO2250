@@ -38,6 +38,14 @@ parecida com a de um osciloscópio de bancada.
 - AUTO FFT, faixa total (0 Hz até Nyquist na tela toda), escalas nos eixos, modo “Só FFT”.
 - Marcação na tela da fundamental (F) e dos harmônicos que se destacam do ruído, com lista em dBc e THD.
 
+**Gerador PSG9080 e resposta em frequência (Bode)**
+- Painel **Gerador PSG9080** (Ferramentas → Gerador PSG9080): conexão pela USB e os dois canais (forma de onda,
+  frequência de µHz a 80 MHz, amplitude, offset, duty, fase, saída), sem sair do OpenHantek.
+- **Ferramentas → Resposta em frequência (Bode)** (Ctrl+B): o gerador varre a frequência, o DSO-2250 mede a
+  entrada e a saída do circuito e o programa traça ganho (dB) e fase (°) em escala logarítmica. Base de tempo e
+  V/div automáticos, média por ponto, calibração com as duas ponteiras no mesmo ponto, CSV e imagem.
+  Faixa de cerca de 0,5 Hz a 80 MHz (acima de 50 MHz por subamostragem coerente).
+
 **Arquivos**
 - **Exportar → Imagem da tela** (PNG/JPG/BMP) ou copiar para a área de transferência.
 - **Registro de dados** por canal (botão ● REG): medições a cada aquisição ou forma de onda, início manual
@@ -50,7 +58,7 @@ Lista de modificações: **[MODIFICACOES.md](MODIFICACOES.md)**
 
 ```sh
 sudo apt install g++ cmake qt6-base-dev qt6-tools-dev qt6-tools-dev-tools qt6-l10n-tools \
-     libqt6opengl6-dev libfftw3-dev binutils-dev libusb-1.0-0-dev \
+     libqt6opengl6-dev libqt6serialport6-dev libfftw3-dev binutils-dev libusb-1.0-0-dev \
      mesa-common-dev libgl1-mesa-dev libgles2-mesa-dev
 git clone https://github.com/danielcrestani/OpenHantek-DSO2250.git
 cd OpenHantek-DSO2250

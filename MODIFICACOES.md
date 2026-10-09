@@ -55,6 +55,19 @@ Cada alteração está num commit separado, a partir de `836cd98`. Resumo por á
   (Ubuntu/Pop!_OS 22.04) o `libusb_exit()` dispara uma asserção interna e deixa de ser chamado nessa versão.
 - Repositório renomeado de `OpenHantek-Fork-DSO2250` para `OpenHantek-DSO2250`.
 
+## Gerador PSG9080 e resposta em frequência (Bode)
+- Protocolo do PSG9080 em C++ sem Qt (`src/generator/psg9080protocol.*`), com as escalas verificadas no
+  aparelho pelo driver pypsgctrl (inclusive as unidades mHz/µHz); comunicação com `QSerialPort`
+  (`src/generator/psg9080.*`), descartando bytes antigos antes de cada comando.
+- Painel **Gerador PSG9080** (`src/generator/GeneratorDock.*`): os dois canais, com releitura após cada envio.
+- **Resposta em frequência (Bode)** (`src/bode/*`): varredura logarítmica, base de tempo e V/div automáticos,
+  descarte das aquisições antigas, média por ponto, DFT de uma frequência com janela de Hann e refinamento de
+  frequência, subamostragem coerente acima de Nyquist, calibração com as duas ponteiras no mesmo ponto,
+  gráfico ganho/fase, CSV e imagem.
+- Testes de unidade das partes sem Qt (`openhantek/tests`, `-DOPENHANTEK_TESTS=ON`) e compilação automática no
+  GitHub Actions (Ubuntu 22.04, Qt 6.2).
+- Nova dependência: Qt SerialPort (`libqt6serialport6-dev`).
+
 ## Arquivos
 - Removidos os exportadores CSV, Impressão e Imagem/PDF antigos (`src/exporting/*`, exceto
   `exportsettings.h`).

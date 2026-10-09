@@ -126,7 +126,53 @@ pequeno erro no ajuste de posição, diferente em cada V/div — o traço fica a
 Refaça de tempos em tempos ou se o aparelho estiver bem mais quente/frio. **Apagar calibração de zero** volta
 a usar só a calibração de fábrica.
 
-## 13. Limitações conhecidas
+## 13. Gerador PSG9080 (Ferramentas → Gerador PSG9080)
+
+O gerador Joy-IT / JunTek PSG9080 é controlado pela USB (porta serial, normalmente `/dev/ttyUSB0`). O painel
+fica numa aba ao lado do painel frontal.
+
+1. Ligue o gerador na USB, escolha a porta e clique em **Conectar**. Se aparecer “sem permissão”, rode
+   `sudo usermod -aG dialout $USER` e entre de novo na sessão.
+2. Em cada canal: **SAÍDA** liga/desliga; forma de onda (22 de fábrica e arbitrárias 01 a 99); frequência com
+   a unidade (Hz, kHz, MHz, mHz, µHz — aceita vírgula); amplitude (Vpp), offset, duty e fase.
+3. O valor é enviado ao apertar Enter, ao usar as setas ou ao sair do campo, e o painel relê o gerador: o que
+   aparece é o que o aparelho aceitou. **Ler do gerador** atualiza tudo; **Desligar saídas** desliga as duas.
+
+## 14. Resposta em frequência — Bode (Ferramentas → Resposta em frequência, Ctrl+B)
+
+Mede o ganho e a fase de um circuito (filtro, amplificador, malha de realimentação, filtro de saída de
+nobreak...) ponto a ponto, com o PSG9080 gerando o sinal e o DSO-2250 medindo.
+
+**Ligações:** a saída do gerador escolhida em *Sinal de teste* vai à entrada do circuito; o canal escolhido em
+*Entrada do circuito* mede essa entrada; o outro canal mede a saída do circuito. Use a mesma atenuação de
+ponteira que está configurada no painel.
+
+**Varredura:** frequência inicial e final e pontos por década. A janela mostra a faixa possível com a memória
+atual (o mínimo depende da memória: com 10 k amostras fica perto de 0,5 Hz; o máximo é o do gerador, 80 MHz).
+Frequências baixas são lentas: cada ponto precisa capturar cerca de 10 períodos.
+
+**Como mede:** para cada frequência o programa ajusta o gerador, escolhe o tempo/div, descarta as aquisições
+antigas, ajusta o V/div dos dois canais (opção *Ajustar V/div automaticamente*) e calcula amplitude e fase só
+na frequência do gerador — ruído e harmônicos não entram. Acima de 50 MHz (metade da amostragem com dois
+canais) o sinal é medido pela frequência rebatida; como a frequência é conhecida, a medida continua válida.
+Durante a varredura o painel frontal e o painel do gerador ficam bloqueados; no fim o osciloscópio volta às
+escalas que estavam antes.
+
+**Calibração:** ligue as duas ponteiras no mesmo ponto (a saída do gerador, sem o circuito) e clique em
+**Calibrar...**. A resposta medida (diferenças entre canais, ponteiras e cabos, e a queda de banda do
+DSO-2250 acima de ~30 MHz) fica guardada; com **Descontar a calibração** ela é removida das próximas medidas.
+Calibre com a mesma faixa, as mesmas ponteiras e o mesmo canal de entrada que vai usar.
+
+**Resultados:** passe o mouse no gráfico para ler frequência, ganho e fase. **Exportar CSV** grava frequência,
+ganho (dB e V/V), fase, Vpp de entrada e saída, relação sinal/ruído de cada canal e se o ponto foi medido por
+subamostragem (`;` e vírgula decimal). **Salvar imagem** e **Copiar imagem** levam o gráfico.
+
+Dicas:
+- Atenuações muito grandes (abaixo de −40 a −50 dB) ficam perto do limite do conversor de 8 bits: aumente
+  *Média por ponto* e a amplitude do gerador, se o circuito aceitar.
+- Pontos sem medida válida aparecem como lacuna no gráfico e com o motivo no CSV.
+
+## 15. Limitações conhecidas
 
 - A banda analógica do DSO-2250 é bem menor que a taxa de amostragem; acima de ~30 MHz a amplitude cai e os
   dois canais diferem alguns por cento.
