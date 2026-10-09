@@ -49,6 +49,10 @@ Cada alteração está num commit separado, a partir de `836cd98`. Resumo por á
 - Código: `QButtonGroup::idClicked`/`idPressed` no lugar dos sinais removidos `buttonClicked(int)` e
   `buttonPressed(int)`; `QPalette::Window`; `Qt::SkipEmptyParts`; `QString::asprintf`; atalhos com `|`;
   `QLibraryInfo::path` e `QTextStream::setEncoding` no Qt 6; `Qt::WindowFlags()` como padrão.
+- Sem avisos de funções obsoletas no Qt 6 (posição do mouse com `position()`, atributos de High-DPI
+  aplicados só no Qt 5).
+- Ao fechar, o programa não termina mais com “Abortado (imagem do núcleo gravada)”: na libusb 1.0.25
+  (Ubuntu/Pop!_OS 22.04) o `libusb_exit()` dispara uma asserção interna e deixa de ser chamado nessa versão.
 - Repositório renomeado de `OpenHantek-Fork-DSO2250` para `OpenHantek-DSO2250`.
 
 ## Arquivos

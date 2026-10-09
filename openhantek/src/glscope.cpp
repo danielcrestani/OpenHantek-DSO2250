@@ -156,8 +156,13 @@ void SpectrumMarkerOverlay::paintEvent(QPaintEvent *) {
 GlScope::~GlScope() {/* virtual destructor necessary */}
 
 QPointF GlScope::eventToPosition(QMouseEvent *event) {
-    QPointF position((double)(event->x() - width() / 2) * DIVS_TIME / (double)width(),
-                     (double)(height() / 2 - event->y()) * DIVS_VOLTAGE / (double)height());
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    const QPointF pos = event->position();
+#else
+    const QPointF pos = event->localPos();
+#endif
+    QPointF position((pos.x() - width() / 2) * DIVS_TIME / (double)width(),
+                     (height() / 2 - pos.y()) * DIVS_VOLTAGE / (double)height());
     if (zoomed) {
         double m1 = scope->getMarker(0);
         double m2 = scope->getMarker(1);

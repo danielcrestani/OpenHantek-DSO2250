@@ -78,6 +78,17 @@ void applySettingsToDevice(HantekDsoControl *dsoControl, DsoSettingsScope *scope
     dsoControl->setTriggerHFReject(scope->trigger.hfReject);
 }
 
+/// libusb_exit() aborts on libusb 1.0.25 ("usbi_hotplug_exit: Assertion
+/// dev->parent_dev != next_dev failed"), the version shipped by Ubuntu/Pop!_OS
+/// 22.04; fixed in 1.0.26. On that version the context is left for the OS to
+/// release at process exit (devices are already closed), so closing the
+/// program no longer ends in "Abortado (imagem do núcleo gravada)".
+static void exitLibUsb(libusb_context *context) {
+    const libusb_version *v = libusb_get_version();
+    if (v->major == 1 && v->minor == 0 && v->micro == 25) return;
+    libusb_exit(context);
+}
+
 /// \brief Initialize resources and translations and show the main window.
 int main(int argc, char *argv[]) {
     //////// Set application information ////////
@@ -85,8 +96,8 @@ int main(int argc, char *argv[]) {
     QCoreApplication::setOrganizationDomain("www.openhantek.org");
     QCoreApplication::setApplicationName("OpenHantek");
     QCoreApplication::setApplicationVersion(VERSION);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0) // always enabled in Qt 6
     QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps, true);
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 6, 0))
     QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling, true);
 #endif
 
@@ -133,7 +144,8 @@ int main(int argc, char *argv[]) {
 
     QString errorMessage;
     if (device == nullptr || !device->connectDevice(errorMessage)) {
-        libusb_exit(context);
+        device.reset();
+        exitLibUsb(context);
         return -1;
     }
 
@@ -192,8 +204,8 @@ int main(int argc, char *argv[]) {
     postProcessingThread.wait(10000);
 
     if (context && device != nullptr) { 
-        device.reset(); // causes libusb_close(), which must be called before libusb_exit() 
-        libusb_exit(context); 
+        device.reset(); // causes libusb_close(), which must be called before libusb_exit()
+        exitLibUsb(context);
     }
 
     return res;
