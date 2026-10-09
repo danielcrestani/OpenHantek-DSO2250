@@ -4,6 +4,12 @@
 
 #include <QApplication>
 #include <QDir>
+#include <QDoubleSpinBox>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QSignalBlocker>
+
+#include <algorithm>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -32,6 +38,28 @@ int main(int argc, char *argv[]) {
 
     Psg9080Window gen;
     save(&gen, dir + "/psg9080.jpg", QSize(900, 470));
+
+    // Same window as when connected: controls enabled, example values, CH1 output on
+    for (QWidget *w : gen.findChildren<QWidget *>()) w->setEnabled(true);
+    const auto spins = gen.findChildren<QDoubleSpinBox *>();
+    const double values[] = {5.0, 0.0, 50.0, 0.0, 1.234, -1.5, 33.33, 90.0};
+    for (int i = 0; i < spins.size() && i < 8; ++i) {
+        QSignalBlocker b(spins[i]);
+        spins[i]->setValue(values[i]);
+    }
+    const auto edits = gen.findChildren<QLineEdit *>();
+    for (QLineEdit *e : edits)
+        if (e->alignment() & Qt::AlignRight) e->setText(e == edits.first() ? "1" : "25,786");
+    const auto buttons = gen.findChildren<QPushButton *>();
+    for (QPushButton *b : buttons)
+        if (b->isCheckable()) {
+            QSignalBlocker block(b);
+            b->setChecked(b == buttons[0] || b->text().contains("SAÍDA") && !b->isChecked() &&
+                                                 b == *std::find_if(buttons.begin(), buttons.end(),
+                                                                    [](QPushButton *x) { return x->isCheckable(); }));
+            if (b->isChecked()) b->setText("SAÍDA LIGADA");
+        }
+    save(&gen, dir + "/psg9080-conectado.jpg", QSize(900, 470));
 
     // Bode plot: RC low pass with fc = 1 kHz, 10 Hz .. 100 kHz
     QWidget bode;
