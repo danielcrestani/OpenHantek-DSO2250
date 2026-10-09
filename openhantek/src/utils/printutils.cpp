@@ -220,9 +220,9 @@ double stringToValue(const QString &text, Unit unit, bool *ok) {
 }
 
 QString hexDump(unsigned char *data, unsigned int length) {
-    QString dumpString, byteString;
+    QString dumpString;
 
-    for (unsigned int index = 0; index < length; ++index) dumpString.append(byteString.sprintf(" %02x", data[index]));
+    for (unsigned int index = 0; index < length; ++index) dumpString.append(QString::asprintf(" %02x", data[index]));
 
     return dumpString;
 }

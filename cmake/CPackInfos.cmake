@@ -113,7 +113,7 @@ include(CMakeDetermineSystem)
 set(CPACK_RPM_PACKAGE_RELOCATABLE NO)
 set(CPACK_RPM_PACKAGE_LICENSE "GPLv2+")
 set(CPACK_RPM_PACKAGE_DESCRIPTION ${CPACK_PACKAGE_DESCRIPTION})
-set(CPACK_RPM_PACKAGE_REQUIRES "qt5-qtbase-gui%{?_isa} >= 5.4, qt5-qttranslations%{?_isa}")
+set(CPACK_RPM_PACKAGE_REQUIRES "qt6-qtbase-gui%{?_isa} >= 6.2, qt6-qttranslations%{?_isa}")
 set(CPACK_RPM_CHANGELOG_FILE "${CMAKE_BINARY_DIR}/changelog")
 
 set(CPACK_NSIS_EXECUTABLES_DIRECTORY ".")

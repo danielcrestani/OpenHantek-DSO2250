@@ -42,6 +42,15 @@ Cada alteração está num commit separado, a partir de `836cd98`. Resumo por á
 - Janelas antigas (Horizontal, Trigger, Voltage, Spectrum) escondidas: as funções estão no painel.
 - Páginas “Analysis” e “Scope” das configurações substituídas pela página “Tela”; cores de impressão ocultas.
 
+## Qt 6
+- Projeto migrado para **Qt 6** (6.2 ou mais novo); Qt 5.15 continua suportado com `-DOPENHANTEK_QT5=ON`.
+  A última versão só em Qt 5 está na tag `v1.0-qt5`.
+- CMake: módulo `OpenGLWidgets`, C++17 e funções do Qt sem número de versão (traduções e recursos).
+- Código: `QButtonGroup::idClicked`/`idPressed` no lugar dos sinais removidos `buttonClicked(int)` e
+  `buttonPressed(int)`; `QPalette::Window`; `Qt::SkipEmptyParts`; `QString::asprintf`; atalhos com `|`;
+  `QLibraryInfo::path` e `QTextStream::setEncoding` no Qt 6; `Qt::WindowFlags()` como padrão.
+- Repositório renomeado de `OpenHantek-Fork-DSO2250` para `OpenHantek-DSO2250`.
+
 ## Arquivos
 - Removidos os exportadores CSV, Impressão e Imagem/PDF antigos (`src/exporting/*`, exceto
   `exportsettings.h`).

@@ -3,7 +3,9 @@ layout: default
 ---
 ### [Linux](#linux)
 For debian (stretch and newer), Ubuntu 17.04+ and Mint 17+ and other deb based distributions install named requirements like this:
-> apt install g++ cmake qttools5-dev qttools5-dev-tools libfftw3-dev binutils-dev libusb-1.0-0-dev libqt5opengl5-dev mesa-common-dev libgl1-mesa-dev libgles2-mesa-dev
+> apt install g++ cmake qt6-base-dev qt6-tools-dev qt6-tools-dev-tools qt6-l10n-tools libqt6opengl6-dev libfftw3-dev binutils-dev libusb-1.0-0-dev mesa-common-dev libgl1-mesa-dev libgles2-mesa-dev
+
+Qt 6.2 or newer is required (Ubuntu 22.04 / Pop!_OS 22.04 and later). To build with Qt 5.15 instead, run `cmake -DOPENHANTEK_QT5=ON ../` with the qt5 packages installed.
 
 For distributions using dnf package manager (Fedora 21+) use this command:
 > dnf install cmake gcc-c++ qt5-qtbase-gui qt5-qttools-devel qt5-qttranslations fftw-devel binutils-devel libusb-devel mesa-libGL-devel mesa-libGLES-devel

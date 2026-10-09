@@ -388,8 +388,8 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, QWid
                "<p><b>Modificações</b> (2026): Daniel Crestani, com assistência do Claude (Anthropic).<br>"
                "Suporte completo ao Hantek DSO-2250, painel frontal, FFT calibrada com harmônicos, "
                "ponteiras e garras de corrente CC-65/CC-650, cursores, registro de dados e outras.<br>"
-               "Código-fonte: <a href='https://github.com/danielcrestani/OpenHantek-Fork-DSO2250'>"
-               "github.com/danielcrestani/OpenHantek-Fork-DSO2250</a></p>"
+               "Código-fonte: <a href='https://github.com/danielcrestani/OpenHantek-DSO2250'>"
+               "github.com/danielcrestani/OpenHantek-DSO2250</a></p>"
                "<p>Este programa é software livre: você pode redistribuí-lo e/ou modificá-lo sob os termos da "
                "<a href='https://www.gnu.org/licenses/gpl-3.0.html'>GNU General Public License</a>, versão 3 ou "
                "(a seu critério) qualquer versão posterior, publicada pela Free Software Foundation.</p>"
@@ -402,7 +402,7 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, QWid
     ui->actionAbout->setText(tr("Sobre o OpenHantek DSO-2250"));
     QAction *forkPage = new QAction(tr("Página deste fork (código e documentação)"), this);
     connect(forkPage, &QAction::triggered,
-            []() { QDesktopServices::openUrl(QUrl("https://github.com/danielcrestani/OpenHantek-Fork-DSO2250")); });
+            []() { QDesktopServices::openUrl(QUrl("https://github.com/danielcrestani/OpenHantek-DSO2250")); });
     QAction *origPage = new QAction(tr("Projeto original OpenHantek"), this);
     connect(origPage, &QAction::triggered,
             []() { QDesktopServices::openUrl(QUrl("https://github.com/OpenHantek/openhantek")); });
@@ -680,10 +680,10 @@ void MainWindow::positionCursorOnSignal() {
 void MainWindow::setupExportAndLog() {
     // Exportar: só imagem do que está na tela (tela + rodapé de medições), como um print do osciloscópio
     QAction *img = ui->menuExport->addAction(iconFont->icon(fa::image), tr("Imagem da tela (PNG/JPG)..."));
-    img->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_E));
+    img->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_E));
     connect(img, &QAction::triggered, this, &MainWindow::exportScreenImage);
     QAction *copy = ui->menuExport->addAction(tr("Copiar imagem da tela"));
-    copy->setShortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_C));
+    copy->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C));
     connect(copy, &QAction::triggered, [this]() {
         QGuiApplication::clipboard()->setPixmap(centralWidget()->grab());
         statusBar()->showMessage(tr("Imagem da tela copiada"), 3000);
@@ -692,7 +692,7 @@ void MainWindow::setupExportAndLog() {
     // Registro de dados por canal
     logger = new DataLogger(&mSettings->scope, deviceSpec, this);
     QAction *logAction = new QAction(tr("Registro de dados (log)..."), this);
-    logAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_L));
+    logAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_L));
     connect(logAction, &QAction::triggered, [this]() { logger->showDialog(this); });
     ui->menuFile->insertAction(ui->actionExit, logAction);
     ui->menuFile->insertSeparator(ui->actionExit);

@@ -108,7 +108,12 @@ int main(int argc, char *argv[]) {
 
     //////// Load translations ////////
     QTranslator qtTranslator;
-    if (qtTranslator.load("qt_" + QLocale::system().name(), QLibraryInfo::location(QLibraryInfo::TranslationsPath)))
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    const QString qtTranslationsPath = QLibraryInfo::path(QLibraryInfo::TranslationsPath);
+#else
+    const QString qtTranslationsPath = QLibraryInfo::location(QLibraryInfo::TranslationsPath);
+#endif
+    if (qtTranslator.load("qt_" + QLocale::system().name(), qtTranslationsPath))
         openHantekApplication.installTranslator(&qtTranslator);
 
     QTranslator openHantekTranslator;

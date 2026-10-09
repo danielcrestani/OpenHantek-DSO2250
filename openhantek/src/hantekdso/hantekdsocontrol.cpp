@@ -1060,7 +1060,7 @@ Dso::ErrorCode HantekDsoControl::setPretriggerPosition(double position) {
 Dso::ErrorCode HantekDsoControl::stringCommand(const QString &commandString) {
     if (!device->isConnected()) return Dso::ErrorCode::CONNECTION;
 
-    QStringList commandParts = commandString.split(' ', QString::SkipEmptyParts);
+    QStringList commandParts = commandString.split(' ', Qt::SkipEmptyParts);
 
     if (commandParts.count() < 1) return Dso::ErrorCode::PARAMETER;
     if (commandParts[0] != "send") return Dso::ErrorCode::UNSUPPORTED;

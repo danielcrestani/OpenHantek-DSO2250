@@ -140,7 +140,11 @@ bool DataLogger::openFiles() {
             return false;
         }
         QTextStream *t = new QTextStream(f);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+        t->setEncoding(QStringConverter::Utf8);
+#else
         t->setCodec("UTF-8");
+#endif
         t->setGenerateByteOrderMark(true); // Excel / LibreOffice open the accents correctly
         const DsoSettingsScopeVoltage &v = scope->voltage[ch];
         const QString u = scope->unitSymbol(ch);

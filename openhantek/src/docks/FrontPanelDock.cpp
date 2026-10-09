@@ -267,7 +267,7 @@ QGroupBox *FrontPanelDock::makeChannelBox(ChannelID ch) {
     connect(pUp, &QPushButton::clicked, [this, ch]() { stepOffset(ch, +0.25); });
     connect(pDown, &QPushButton::clicked, [this, ch]() { stepOffset(ch, -0.25); });
     connect(pZero, &QPushButton::clicked, [this, ch]() { stepOffset(ch, -scope->voltage[ch].offset); });
-    connect(u.probeGroup, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), [this, ch](int index) {
+    connect(u.probeGroup, &QButtonGroup::idClicked, [this, ch](int index) {
         if (index >= 0 && (size_t)index < probeSensors().size()) changeProbe(ch, (unsigned)index);
     });
     return box;
@@ -446,18 +446,18 @@ QGroupBox *FrontPanelDock::makeTriggerBox() {
     lvlRow->addWidget(l50);
     g->addLayout(lvlRow, 7, 0, 1, 3);
 
-    connect(modeGroup, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), [this](int id) {
+    connect(modeGroup, &QButtonGroup::idClicked, [this](int id) {
         triggerDock->selectMode((Dso::TriggerMode)id);
         refresh();
     });
-    connect(sourceGroup, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), [this](int id) {
+    connect(sourceGroup, &QButtonGroup::idClicked, [this](int id) {
         if (id >= 100)
             triggerDock->selectSource(true, (unsigned)(id - 100));
         else
             triggerDock->selectSource(false, (unsigned)id);
         refresh();
     });
-    connect(slopeGroup, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), [this](int id) {
+    connect(slopeGroup, &QButtonGroup::idClicked, [this](int id) {
         triggerDock->selectSlope((Dso::Slope)id);
         refresh();
     });
@@ -780,7 +780,7 @@ QGroupBox *FrontPanelDock::makeSpectrumBox() {
         winRow->addWidget(b);
     }
     g->addLayout(winRow, row++, 0, 1, 4);
-    connect(windowGroup, static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), [this](int id) {
+    connect(windowGroup, &QButtonGroup::idClicked, [this](int id) {
         post->spectrumWindow = (Dso::WindowFunction)id;
         refresh();
     });

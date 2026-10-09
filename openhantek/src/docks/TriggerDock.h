@@ -27,7 +27,7 @@ class TriggerDock : public QDockWidget {
     /// \param spec
     /// \param parent The parent widget.
     /// \param flags Flags for the window manager.
-    TriggerDock(DsoSettingsScope *scope, const Dso::ControlSpecification* mSpec, QWidget *parent, Qt::WindowFlags flags = 0);
+    TriggerDock(DsoSettingsScope *scope, const Dso::ControlSpecification* mSpec, QWidget *parent, Qt::WindowFlags flags = Qt::WindowFlags());
 
     /// \brief Changes the trigger mode if the new mode is supported.
     /// \param mode The trigger mode.

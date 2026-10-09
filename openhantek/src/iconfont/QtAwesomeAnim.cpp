@@ -13,7 +13,7 @@ void QtAwesomeAnimation::setup(QPainter &painter, const QRect &rect) {
     // first time set the timer
     if (!timer_) {
         timer_ = new QTimer();
-        connect(timer_, SIGNAL(timeout()), this, SLOT(update()));
+        connect(timer_, &QTimer::timeout, this, &QtAwesomeAnimation::update);
         timer_->start(interval_);
     } else {
         QPen pen = painter.pen();

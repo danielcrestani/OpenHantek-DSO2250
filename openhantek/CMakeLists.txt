@@ -1,16 +1,21 @@
 project(OpenHantek CXX)
 
-find_package(Qt5Widgets REQUIRED)
-find_package(Qt5PrintSupport REQUIRED)
-find_package(Qt5OpenGL REQUIRED)
+# Qt 6 is the default; Qt 5.15 still works (cmake -DOPENHANTEK_QT5=ON).
+option(OPENHANTEK_QT5 "Build with Qt 5 instead of Qt 6" OFF)
+if (OPENHANTEK_QT5)
+    find_package(Qt5 5.15 REQUIRED COMPONENTS Widgets PrintSupport OpenGL)
+    set(QT_VERSION_MAJOR 5)
+    set(OPENHANTEK_QT_LIBS Qt5::Widgets Qt5::PrintSupport Qt5::OpenGL)
+else()
+    find_package(Qt6 6.2 REQUIRED COMPONENTS Widgets PrintSupport OpenGL OpenGLWidgets)
+    set(QT_VERSION_MAJOR 6)
+    set(OPENHANTEK_QT_LIBS Qt6::Widgets Qt6::PrintSupport Qt6::OpenGL Qt6::OpenGLWidgets)
+endif()
+message(STATUS "Building with Qt ${QT_VERSION_MAJOR}")
 find_package(OpenGL)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
-
-if (Qt5Widgets_VERSION VERSION_LESS 5.4.0)
-    message(FATAL_ERROR "Minimum supported Qt5 version is 5.4.0!")
-endif()
 
 # include directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -36,7 +41,8 @@ endif()
 
 # make executable
 add_executable(${PROJECT_NAME} ${EXECTYPE} ${SRC} ${HEADERS} ${UI} ${QRC} ${TRANSLATION_BIN_FILES} ${TRANSLATION_QRC})
-target_link_libraries(${PROJECT_NAME} Qt5::Widgets Qt5::PrintSupport Qt5::OpenGL ${OPENGL_LIBRARIES} )
+target_link_libraries(${PROJECT_NAME} ${OPENHANTEK_QT_LIBS} ${OPENGL_LIBRARIES} )
+set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_range_for)
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE "/W4" "/wd4251" "/wd4127" "/wd4275" "/wd4200" "/nologo" "/J" "/Zi")
@@ -67,4 +73,4 @@ endif()
 # install commands
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION "bin")
 
-include(../cmake/copy_qt5_dlls_to_bin_dir.cmake)
+include(../cmake/copy_qt_dlls_to_bin_dir.cmake)

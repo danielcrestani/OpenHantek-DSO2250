@@ -49,10 +49,11 @@ Lista de modificações: **[MODIFICACOES.md](MODIFICACOES.md)**
 ## Compilar e instalar (Pop!_OS / Ubuntu / Debian)
 
 ```sh
-sudo apt install g++ cmake qttools5-dev qttools5-dev-tools libfftw3-dev binutils-dev \
-     libusb-1.0-0-dev libqt5opengl5-dev mesa-common-dev libgl1-mesa-dev libgles2-mesa-dev
-git clone https://github.com/danielcrestani/OpenHantek-Fork-DSO2250.git
-cd OpenHantek-Fork-DSO2250
+sudo apt install g++ cmake qt6-base-dev qt6-tools-dev qt6-tools-dev-tools qt6-l10n-tools \
+     libqt6opengl6-dev libfftw3-dev binutils-dev libusb-1.0-0-dev \
+     mesa-common-dev libgl1-mesa-dev libgles2-mesa-dev
+git clone https://github.com/danielcrestani/OpenHantek-DSO2250.git
+cd OpenHantek-DSO2250
 mkdir build && cd build
 cmake .. && make -j$(nproc)
 sudo cp ../firmware/60-hantek.rules /lib/udev/rules.d/ && sudo udevadm control --reload-rules
@@ -61,6 +62,9 @@ sudo cp ../firmware/60-hantek.rules /lib/udev/rules.d/ && sudo udevadm control -
 
 Depois de copiar a regra do udev, desconecte e reconecte o DSO-2250. O firmware é enviado pelo próprio
 programa na primeira conexão (o aparelho muda de `04b4:2250` para `04b5:2250`).
+
+O projeto usa **Qt 6** (6.2 ou mais novo). A última versão em Qt 5 está na tag `v1.0-qt5`; para
+compilar com Qt 5.15 a partir deste código, use `cmake -DOPENHANTEK_QT5=ON ..`
 
 > **Segurança:** o DSO-2250 **não é isolado** — o terra das ponteiras é o terra do computador. Não meça a rede
 > elétrica diretamente; use ponteira diferencial, transformador isolador ou garra de corrente.
@@ -114,10 +118,10 @@ Navigate to the [Releases](https://github.com/OpenHantek/openhantek/releases) pa
 ## Building OpenHantek from source
 You need the following software, to build OpenHantek from source:
 * [CMake 3.5+](https://cmake.org/download/)
-* [Qt 5.4+](https://www1.qt.io/download-open-source/)
+* [Qt 6.2+](https://www.qt.io/download-open-source) (Qt 5.15 with `-DOPENHANTEK_QT5=ON`)
 * [FFTW 3+ (prebuild files will be downloaded on windows)](http://www.fftw.org/)
 * libusb 1.x (prebuild files will be used on windows)
-* A compiler that supports C++11
+* A compiler that supports C++17
 
 We have build instructions available for [Linux](docs/build.md#linux), [Apple MacOSX](docs/build.md#apple) and [Microsoft Windows](docs/build.md#windows).
 
