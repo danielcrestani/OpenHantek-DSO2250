@@ -69,6 +69,7 @@ class BodeWindow : public QMainWindow {
     void refreshPorts();
     void toggleGenerator();
     void updateGeneratorUi();
+    void applyLevels(); ///< sends amplitude and offset to the generator channel now
 
     // oscilloscope
     void configureScope();

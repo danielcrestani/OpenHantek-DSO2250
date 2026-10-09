@@ -133,6 +133,16 @@ BodeWindow::BodeWindow(HantekDsoControl *dsoControl, const Dso::ControlSpecifica
     updateGeneratorUi();
     setUiRunning(false);
 
+    // Amplitude and offset go to the generator as soon as they are edited (short delay, so turning the mouse
+    // wheel sends only the final value), not only when the sweep starts
+    QTimer *levelTimer = new QTimer(this);
+    levelTimer->setSingleShot(true);
+    levelTimer->setInterval(250);
+    connect(levelTimer, &QTimer::timeout, this, &BodeWindow::applyLevels);
+    for (QDoubleSpinBox *box : {amplitudeBox, offsetBox})
+        connect(box, QOverload<double>::of(&QDoubleSpinBox::valueChanged), levelTimer,
+                QOverload<>::of(&QTimer::start));
+
     QSettings s;
     resize(1180, 760);
     restoreGeometry(s.value("window/geometry").toByteArray());
@@ -356,6 +366,19 @@ void BodeWindow::saveSettings() {
     s.setValue("useCalibration", useCalibrationBox->isChecked());
     s.setValue("port", portBox->currentText());
     s.endGroup();
+}
+
+void BodeWindow::applyLevels() {
+    if (!gen->isOpen()) return; // applied when the sweep starts
+    const int g = genChannel();
+    if (!gen->setAmplitude(g, amplitudeBox->value()) || !gen->setOffset(g, offsetBox->value())) {
+        status(gen->lastError(), true);
+        return;
+    }
+    status(tr("Gerador CH%1: %2 Vpp, offset %3 V.")
+               .arg(g)
+               .arg(QString::number(amplitudeBox->value(), 'f', 3).replace('.', ','))
+               .arg(QString::number(offsetBox->value(), 'f', 2).replace('.', ',')));
 }
 
 int BodeWindow::genChannel() const { return genChannelBox->currentData().toInt(); }
