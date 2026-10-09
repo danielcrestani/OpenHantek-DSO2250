@@ -89,8 +89,8 @@ inline QString panelSheet() {
            // light arrows (res/style.qrc): the Fusion arrows vanish on the dark fields
            "QComboBox::drop-down { subcontrol-origin: padding; subcontrol-position: center right; width: 20px;"
            "  border: none; }"
-           "QComboBox::down-arrow { image: url(:/style/arrow-down@2x.png); width: 10px; height: 6px; }"
-           "QComboBox::down-arrow:disabled { image: url(:/style/arrow-down-disabled@2x.png); }"
+           "QComboBox::down-arrow { image: url(\":/style/arrow-down.png\"); width: 10px; height: 6px; }"
+           "QComboBox::down-arrow:disabled { image: url(\":/style/arrow-down-disabled.png\"); }"
            "QCheckBox, QRadioButton { color: #e6e9ee; spacing: 6px; }"
            "QProgressBar { background: #11141a; color: #e6e9ee; border: 1px solid #3a404a; border-radius: 4px;"
            "  text-align: center; min-height: 18px; }"
