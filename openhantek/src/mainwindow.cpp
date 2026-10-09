@@ -16,6 +16,9 @@
 #include "dsowidget.h"
 #include "datalogger.h"
 #include "zerocalibration.h"
+#include "bode/bodewindow.h"
+#include "generator/GeneratorDock.h"
+#include "generator/psg9080.h"
 #include "hantekdsocontrol.h"
 #include "usb/usbdevice.h"
 #include "viewconstants.h"
@@ -157,6 +160,36 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, QWid
     frontPanel->setViewSettings(&mSettings->view);
     frontPanel->setSpectrumControls(spectrumDock, &mSettings->post);
     connect(frontPanel, &FrontPanelDock::gridContrastRequested, [this](int level) { applyGridContrast(level); });
+
+    // Gerador PSG9080 (painel ao lado do painel frontal) e análise de resposta em frequência (Bode)
+    generator = new Psg9080(this);
+    generatorDock = new GeneratorDock(generator, this);
+    addDockWidget(Qt::RightDockWidgetArea, generatorDock);
+    if (!restoreDockWidget(generatorDock)) { // first run: a tab behind the front panel
+        tabifyDockWidget(frontPanel, generatorDock);
+        frontPanel->raise();
+    }
+    generatorDock->toggleViewAction()->setText(tr("Gerador PSG9080"));
+    ui->menuView->addAction(generatorDock->toggleViewAction());
+
+    bodeWindow = new BodeWindow(generator, generatorDock, dsoControl, scope, spec, voltageDock, horizontalDock,
+                                triggerDock, dsoWidget, ui->actionSampling, this);
+    QMenu *toolsMenu = new QMenu(tr("&Ferramentas"), this);
+    QAction *bodeAction = toolsMenu->addAction(tr("Resposta em frequência (Bode)..."));
+    bodeAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_B));
+    connect(bodeAction, &QAction::triggered, this, [this]() {
+        bodeWindow->show();
+        bodeWindow->raise();
+        bodeWindow->activateWindow();
+    });
+    QAction *generatorAction = toolsMenu->addAction(tr("Gerador PSG9080"));
+    connect(generatorAction, &QAction::triggered, this, [this]() {
+        generatorDock->show();
+        generatorDock->raise();
+    });
+    menuBar()->insertMenu(ui->menuHelp->menuAction(), toolsMenu);
+    // during a sweep the scope is driven by the Bode window: keep the front panel out of the way
+    connect(bodeWindow, &BodeWindow::runningChanged, this, [this](bool running) { frontPanel->setEnabled(!running); });
 
     // Command field inside the status bar
     QLineEdit *commandEdit = new QLineEdit(this);
@@ -430,6 +463,7 @@ void MainWindow::showNewData(std::shared_ptr<PPresult> data) {
     lastData = data;
     if (zeroCal && zeroCal->running()) zeroCal->process(data);
     else if (logger) logger->process(data);
+    if (bodeWindow && bodeWindow->running()) bodeWindow->process(data);
     dsoWidget->showNew(data);
     if (frontPanel) frontPanel->showData(data);
     if (measurementBar) measurementBar->showData(data);
@@ -454,6 +488,8 @@ void MainWindow::applyGridContrast(int level) {
 /// \brief Save the settings before exiting.
 /// \param event The close event that should be handled.
 void MainWindow::closeEvent(QCloseEvent *event) {
+    // stop a running sweep first: it restores the scope settings that are saved below
+    if (bodeWindow) bodeWindow->close();
     if (mSettings->alwaysSave) {
         mSettings->mainWindowGeometry = saveGeometry();
         mSettings->mainWindowState = saveState();

@@ -55,6 +55,9 @@ class MainWindow : public QMainWindow {
     DsoSettings *mSettings;
     DataLogger *logger = nullptr;
     class ZeroCalibration *zeroCal = nullptr;
+    class Psg9080 *generator = nullptr;
+    class GeneratorDock *generatorDock = nullptr;
+    class BodeWindow *bodeWindow = nullptr;
     const Dso::ControlSpecification *deviceSpec = nullptr;
     QToolButton *recButton = nullptr;
     void setupExportAndLog();

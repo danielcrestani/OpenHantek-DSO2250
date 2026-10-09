@@ -1,0 +1,35 @@
+name: Compilar
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  linux-qt6:
+    # Same base as Pop!_OS 22.04: Qt 6.2, GCC 11, libusb 1.0.25
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependências
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ cmake qt6-base-dev qt6-tools-dev \
+            qt6-tools-dev-tools qt6-l10n-tools libqt6opengl6-dev libqt6serialport6-dev libfftw3-dev \
+            binutils-dev libusb-1.0-0-dev mesa-common-dev libgl1-mesa-dev libgles2-mesa-dev libxkbcommon-dev
+
+      - name: Configurar
+        run: cmake -S . -B build -DOPENHANTEK_TESTS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+      - name: Compilar
+        run: cmake --build build -j"$(nproc)" 2>&1 | tee build.log
+
+      - name: Avisos do compilador
+        if: always()
+        run: grep -E "warning:|error:" build.log | sort -u || echo "Nenhum aviso."
+
+      - name: Testes
+        run: |
+          cmake --build build --target openhantek_tests -j"$(nproc)"
+          cd build/openhantek && ctest --output-on-failure

@@ -1,0 +1,210 @@
+// SPDX-License-Identifier: GPL-2.0+
+
+#include "psg9080.h"
+
+#include <QElapsedTimer>
+#include <QSerialPort>
+
+#include <cmath>
+
+using namespace psg9080;
+
+static const int kTimeoutMs = 1000; ///< the device answers in about 5 ms
+
+Psg9080::Psg9080(QObject *parent) : QObject(parent), port(new QSerialPort(this)) {}
+
+Psg9080::~Psg9080() { close(); }
+
+bool Psg9080::isOpen() const { return port->isOpen(); }
+
+QString Psg9080::portName() const { return port->portName(); }
+
+bool Psg9080::fail(const QString &message) {
+    error = message;
+    return false;
+}
+
+bool Psg9080::open(const QString &portName) {
+    close();
+    port->setPortName(portName);
+    port->setBaudRate(QSerialPort::Baud115200);
+    port->setDataBits(QSerialPort::Data8);
+    port->setParity(QSerialPort::NoParity);
+    port->setStopBits(QSerialPort::OneStop);
+    port->setFlowControl(QSerialPort::NoFlowControl);
+    if (!port->open(QIODevice::ReadWrite)) {
+        const QString reason = port->errorString();
+        if (port->error() == QSerialPort::PermissionError)
+            return fail(tr("Sem permissão para abrir %1. Adicione o usuário ao grupo dialout "
+                           "(sudo usermod -aG dialout $USER) e entre de novo na sessão.")
+                            .arg(portName));
+        return fail(tr("Não foi possível abrir %1: %2").arg(portName, reason));
+    }
+    bool a = false, b = false;
+    if (!readOutputs(a, b)) {
+        const QString reason = error;
+        port->close();
+        return fail(tr("%1 não respondeu como um PSG9080 (%2).").arg(portName, reason));
+    }
+    error.clear();
+    emit connectionChanged(true);
+    return true;
+}
+
+void Psg9080::close() {
+    if (!port->isOpen()) return;
+    port->close();
+    emit connectionChanged(false);
+}
+
+bool Psg9080::exchange(const std::string &command, std::string &answer) {
+    if (!port->isOpen()) return fail(tr("Gerador não conectado."));
+    // Drop anything left from an earlier command (a late answer after a timeout, power-up noise)
+    port->clear(QSerialPort::Input);
+    port->readAll();
+    const QByteArray bytes(command.data(), (int)command.size());
+    if (port->write(bytes) != bytes.size() || !port->waitForBytesWritten(kTimeoutMs))
+        return fail(tr("Falha ao enviar o comando ao gerador: %1").arg(port->errorString()));
+
+    QByteArray buffer;
+    QElapsedTimer timer;
+    timer.start();
+    while (!buffer.contains("\r\n")) {
+        const qint64 left = kTimeoutMs - timer.elapsed();
+        if (left <= 0 || !port->waitForReadyRead((int)left)) {
+            if (port->error() == QSerialPort::ResourceError) {
+                close();
+                return fail(tr("O gerador foi desconectado."));
+            }
+            return fail(tr("O gerador não respondeu."));
+        }
+        buffer += port->readAll();
+        if (buffer.size() > 4096) return fail(tr("Resposta do gerador muito longa."));
+    }
+    answer = buffer.left(buffer.indexOf("\r\n")).toStdString();
+    return true;
+}
+
+bool Psg9080::writeRegister(int code, const std::vector<std::string> &fields) {
+    std::string answer;
+    if (!exchange(writeCommand(code, fields), answer)) return false;
+    if (!isWriteAck(answer))
+        return fail(tr("O gerador recusou o comando %1 (resposta: %2).")
+                        .arg(QString::fromStdString(writeCommand(code, fields)).trimmed(),
+                             QString::fromStdString(answer)));
+    return true;
+}
+
+bool Psg9080::readRegister(int code, std::vector<std::string> &fields) {
+    std::string answer;
+    if (!exchange(readCommand(code), answer)) return false;
+    if (!parseReadAnswer(answer, code, fields))
+        return fail(tr("Resposta inesperada do gerador: %1").arg(QString::fromStdString(answer)));
+    return true;
+}
+
+bool Psg9080::checkChannel(int channel) {
+    if (channel == 1 || channel == 2) return true;
+    return fail(tr("Canal do gerador inválido: %1").arg(channel));
+}
+
+bool Psg9080::setOutputs(bool ch1, bool ch2) {
+    if (!writeRegister(REG_OUTPUTS, {encodeOutputs(ch1, ch2)})) return false;
+    emit outputsWritten(ch1, ch2);
+    return true;
+}
+
+bool Psg9080::setOutput(int channel, bool on) {
+    bool a = false, b = false;
+    if (!checkChannel(channel) || !readOutputs(a, b)) return false;
+    (channel == 1 ? a : b) = on;
+    return setOutputs(a, b);
+}
+
+bool Psg9080::readOutputs(bool &ch1, bool &ch2) {
+    std::vector<std::string> f;
+    if (!readRegister(REG_OUTPUTS, f)) return false;
+    if (!decodeOutputs(f, ch1, ch2)) return fail(tr("Resposta inválida do estado das saídas."));
+    return true;
+}
+
+bool Psg9080::setWaveform(int channel, int code) {
+    if (!checkChannel(channel)) return false;
+    if (!((code >= 0 && code < kBuiltinWaveforms) || (code >= kArbitraryFirst && code <= kArbitraryLast)))
+        return fail(tr("Forma de onda inválida: %1").arg(code));
+    if (!writeRegister(channelRegister(REG_WAVEFORM, channel), {std::to_string(code)})) return false;
+    emit channelWritten(channel);
+    return true;
+}
+
+bool Psg9080::setFrequency(int channel, double hz) { return setFrequency(channel, hz, bestUnit(hz)); }
+
+bool Psg9080::setFrequency(int channel, double hz, FreqUnit unit) {
+    if (!checkChannel(channel)) return false;
+    if (!std::isfinite(hz) || hz < 0 || hz > kMaxFrequency)
+        return fail(tr("Frequência fora da faixa do gerador (0 a 80 MHz)."));
+    std::vector<std::string> f;
+    encodeFrequency(hz, unit, f);
+    if (!writeRegister(channelRegister(REG_FREQUENCY, channel), f)) return false;
+    emit channelWritten(channel);
+    return true;
+}
+
+bool Psg9080::setAmplitude(int channel, double vpp) {
+    if (!checkChannel(channel)) return false;
+    if (!std::isfinite(vpp) || vpp < 0 || vpp > kMaxAmplitude)
+        return fail(tr("Amplitude fora da faixa (0 a %1 Vpp).").arg(kMaxAmplitude));
+    if (!writeRegister(channelRegister(REG_AMPLITUDE, channel), {encodeAmplitude(vpp)})) return false;
+    emit channelWritten(channel);
+    return true;
+}
+
+bool Psg9080::setOffset(int channel, double volts) {
+    if (!checkChannel(channel)) return false;
+    if (!std::isfinite(volts) || std::fabs(volts) > kMaxOffset)
+        return fail(tr("Offset fora da faixa (-10 a +10 V)."));
+    if (!writeRegister(channelRegister(REG_OFFSET, channel), {encodeOffset(volts)})) return false;
+    emit channelWritten(channel);
+    return true;
+}
+
+bool Psg9080::setDuty(int channel, double percent) {
+    if (!checkChannel(channel)) return false;
+    if (!std::isfinite(percent) || percent < 0 || percent > 100) return fail(tr("Duty fora da faixa (0 a 100 %)."));
+    if (!writeRegister(channelRegister(REG_DUTY, channel), {encodeHundredths(percent)})) return false;
+    emit channelWritten(channel);
+    return true;
+}
+
+bool Psg9080::setPhase(int channel, double degrees) {
+    if (!checkChannel(channel)) return false;
+    if (!std::isfinite(degrees) || degrees < 0 || degrees >= 360) return fail(tr("Fase fora da faixa (0 a 359,99°)."));
+    if (!writeRegister(channelRegister(REG_PHASE, channel), {encodeHundredths(degrees)})) return false;
+    emit channelWritten(channel);
+    return true;
+}
+
+bool Psg9080::readChannel(int channel, ChannelState &s) {
+    if (!checkChannel(channel)) return false;
+    std::vector<std::string> f;
+    // A communication failure keeps its own message; a malformed answer gets one naming the parameter.
+    auto get = [&](Register reg) { return readRegister(channelRegister(reg, channel), f); };
+    long long code = 0;
+    if (!get(REG_WAVEFORM)) return false;
+    if (!decodeInteger(f, code)) return fail(tr("Resposta inválida da forma de onda."));
+    s.waveform = (int)code;
+    if (!get(REG_FREQUENCY)) return false;
+    if (!decodeFrequency(f, s.frequency, s.unit)) return fail(tr("Resposta inválida da frequência."));
+    if (!get(REG_AMPLITUDE)) return false;
+    if (!decodeAmplitude(f, s.amplitude)) return fail(tr("Resposta inválida da amplitude."));
+    if (!get(REG_OFFSET)) return false;
+    if (!decodeOffset(f, s.offset)) return fail(tr("Resposta inválida do offset."));
+    if (!get(REG_DUTY)) return false;
+    if (!decodeHundredths(f, s.duty)) return fail(tr("Resposta inválida do duty."));
+    if (!get(REG_PHASE)) return false;
+    if (!decodeHundredths(f, s.phase)) return fail(tr("Resposta inválida da fase."));
+    bool a = false, b = false;
+    if (!readOutputs(a, b)) return false;
+    s.enabled = channel == 1 ? a : b;
+    return true;
+}
