@@ -153,7 +153,19 @@ void SpectrumMarkerOverlay::paintEvent(QPaintEvent *) {
     }
 }
 
-GlScope::~GlScope() {/* virtual destructor necessary */}
+GlScope::~GlScope() {
+    // Free the OpenGL objects while this widget's context is still current;
+    // otherwise Qt 6 warns "QOpenGLVertexArrayObject::destroy() failed to
+    // restore current context" when the program closes.
+    makeCurrent();
+    m_GraphHistory.clear();
+    m_vaoMarker.destroy();
+    m_marker.destroy();
+    for (QOpenGLVertexArrayObject &vao : m_vaoGrid) vao.destroy();
+    m_grid.destroy();
+    m_program.reset();
+    doneCurrent();
+}
 
 QPointF GlScope::eventToPosition(QMouseEvent *event) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)

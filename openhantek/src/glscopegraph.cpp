@@ -69,13 +69,11 @@ void Graph::writeData(PPresult *data, QOpenGLShaderProgram *program, int vertexL
 }
 
 Graph::~Graph() {
-    for (auto &vao : vaoVoltage) {
-        vao.first->destroy();
-        delete vao.first;
-    }
-    for (auto &vao : vaoSpectrum) {
-        vao.first->destroy();
-        delete vao.first;
-    }
+    for (auto *vaos : {&vaoVoltage, &vaoSpectrum})
+        for (auto &vao : *vaos) {
+            if (!vao.first) continue; // slot never filled (e.g. no spectrum for that channel)
+            vao.first->destroy();
+            delete vao.first;
+        }
     if (buffer.isCreated()) { buffer.destroy(); }
 }
