@@ -39,7 +39,7 @@ static void logMessage(QtMsgType, const QMessageLogContext &, const QString &msg
 int main(int argc, char *argv[]) {
     qInstallMessageHandler(logMessage);
     QApplication app(argc, argv);
-    for (const char *f : {":/style/arrow-down@2x.png", ":/style/arrow-up@2x.png"})
+    for (const char *f : {":/style/arrow-down.png", ":/style/arrow-up.png"})
         fprintf(stderr, "resource %s: %s\n", f, QFile::exists(f) ? "ok" : "MISSING");
     darkstyle::applyApplicationLook(app);
     const QString dir = argc > 1 ? argv[1] : QString(".");
