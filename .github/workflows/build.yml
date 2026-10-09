@@ -74,7 +74,7 @@ jobs:
           echo "::notice title=Pacote::$(basename "$deb") ($(du -h "$deb" | cut -f1)) depende de: $(dpkg-deb -f "$deb" Depends)"
           echo "DEB=$deb" >> "$GITHUB_ENV"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: pacote-deb
           path: build/packages/*.deb
