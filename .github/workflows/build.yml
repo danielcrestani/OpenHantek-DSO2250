@@ -51,3 +51,17 @@ jobs:
           cd build/openhantek && ctest --output-on-failure | tee ctest.log
           echo "::notice title=Testes::$(grep -E 'tests passed|testes' ctest.log | tail -1)"
           for t in psg9080protocol bodeanalysis psg9080presets; do echo "::notice title=$t::$(./test_$t | tr '\n' ' ')"; done
+
+      - name: Capturas das janelas
+        if: always()
+        run: |
+          sudo apt-get install -y --no-install-recommends fonts-dejavu-core > /dev/null
+          cd build/openhantek
+          QT_QPA_PLATFORM=offscreen ./ui_snapshots shots
+          # each image goes out as base64 in numbered notices (read back through the API)
+          for f in shots/*.jpg; do
+            n=$(basename "$f" .jpg); i=0
+            base64 -w0 "$f" | fold -w 60000 | while IFS= read -r part; do
+              echo "::notice title=shot-$n-$i::$part"; i=$((i+1))
+            done
+          done

@@ -144,5 +144,12 @@ if (OPENHANTEK_TESTS)
     target_link_libraries(test_psg9080presets psg9080_core ${OPENHANTEK_QT_LIBS})
     set_target_properties(test_psg9080presets PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
     add_test(NAME psg9080presets COMMAND test_psg9080presets)
-    add_custom_target(openhantek_tests DEPENDS test_psg9080protocol test_bodeanalysis test_psg9080presets)
+    # Screenshots of the PSG9080 window and the Bode plot with synthetic data (checked in CI, offscreen)
+    add_executable(ui_snapshots tests/ui_snapshots.cpp src/apps/psg9080window.cpp src/apps/psg9080window.h
+                   src/bode/bodeplot.cpp src/bode/bodeplot.h src/bode/scopepreview.cpp src/bode/scopepreview.h
+                   src/bode/sampletap.cpp src/bode/sampletap.h)
+    target_include_directories(ui_snapshots PRIVATE src tests)
+    target_link_libraries(ui_snapshots psg9080_core ${OPENHANTEK_QT_LIBS})
+    set_target_properties(ui_snapshots PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+    add_custom_target(openhantek_tests DEPENDS test_psg9080protocol test_bodeanalysis test_psg9080presets ui_snapshots)
 endif()
