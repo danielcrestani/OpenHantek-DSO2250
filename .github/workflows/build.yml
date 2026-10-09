@@ -38,6 +38,11 @@ jobs:
             kind=$(echo "$line" | cut -d: -f4 | tr -d ' '); msg=$(echo "$line" | cut -d: -f5-)
             echo "::${kind} file=${file},line=${ln}::${msg}"
           done < diag.txt
+          # linker, CMake and make errors have no file:line prefix
+          grep -E "undefined reference|multiple definition|ld returned|CMake Error|No rule to make|Error [0-9]+" build.log \
+            | grep -v "^/.*: warning:" | sort -u | head -40 | while IFS= read -r line; do
+            echo "::error title=Build::${line}"
+          done
 
       - name: Testes
         run: |
