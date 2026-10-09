@@ -38,13 +38,17 @@ parecida com a de um osciloscópio de bancada.
 - AUTO FFT, faixa total (0 Hz até Nyquist na tela toda), escalas nos eixos, modo “Só FFT”.
 - Marcação na tela da fundamental (F) e dos harmônicos que se destacam do ruído, com lista em dBc e THD.
 
-**Gerador PSG9080 e resposta em frequência (Bode)**
-- Painel **Gerador PSG9080** (Ferramentas → Gerador PSG9080): conexão pela USB e os dois canais (forma de onda,
-  frequência de µHz a 80 MHz, amplitude, offset, duty, fase, saída), sem sair do OpenHantek.
-- **Ferramentas → Resposta em frequência (Bode)** (Ctrl+B): o gerador varre a frequência, o DSO-2250 mede a
-  entrada e a saída do circuito e o programa traça ganho (dB) e fase (°) em escala logarítmica. Base de tempo e
-  V/div automáticos, média por ponto, calibração com as duas ponteiras no mesmo ponto, CSV e imagem.
+**Três programas no mesmo projeto**
+- **OpenHantek** — osciloscópio e FFT do DSO-2250.
+- **PSG9080** — controle do gerador de funções Joy-IT / JunTek PSG9080 pela USB: os dois canais (forma de onda,
+  frequência de µHz a 80 MHz, amplitude, offset, duty, fase, saída) e presets por canal ou para os dois
+  (mesmo arquivo do psg-gui em Python).
+- **OpenHantekBode** — resposta em frequência: o PSG9080 varre a frequência, o DSO-2250 mede a entrada e a saída
+  do circuito e o programa traça ganho (dB) e fase (°) em escala logarítmica. Escalas automáticas, média por
+  ponto, calibração com as duas ponteiras no mesmo ponto, visualização ao vivo dos dois canais, CSV e imagem.
   Faixa de cerca de 0,5 Hz a 80 MHz (acima de 50 MHz por subamostragem coerente).
+
+O DSO-2250 e a porta serial do PSG9080 só podem ser usados por um programa de cada vez.
 
 **Arquivos**
 - **Exportar → Imagem da tela** (PNG/JPG/BMP) ou copiar para a área de transferência.
@@ -65,7 +69,9 @@ cd OpenHantek-DSO2250
 mkdir build && cd build
 cmake .. && make -j$(nproc)
 sudo cp ../firmware/60-hantek.rules /lib/udev/rules.d/ && sudo udevadm control --reload-rules
-./openhantek/OpenHantek
+./openhantek/OpenHantek          # osciloscópio e FFT
+./openhantek/PSG9080             # gerador
+./openhantek/OpenHantekBode      # resposta em frequência
 ```
 
 Depois de copiar a regra do udev, desconecte e reconecte o DSO-2250. O firmware é enviado pelo próprio

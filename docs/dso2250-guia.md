@@ -126,10 +126,10 @@ pequeno erro no ajuste de posição, diferente em cada V/div — o traço fica a
 Refaça de tempos em tempos ou se o aparelho estiver bem mais quente/frio. **Apagar calibração de zero** volta
 a usar só a calibração de fábrica.
 
-## 13. Gerador PSG9080 (Ferramentas → Gerador PSG9080)
+## 13. Programa PSG9080 (gerador de funções)
 
-O gerador Joy-IT / JunTek PSG9080 é controlado pela USB (porta serial, normalmente `/dev/ttyUSB0`). O painel
-fica numa aba ao lado do painel frontal.
+`./openhantek/PSG9080` controla o gerador Joy-IT / JunTek PSG9080 pela USB (porta serial, normalmente
+`/dev/ttyUSB0`). Não precisa do osciloscópio.
 
 1. Ligue o gerador na USB, escolha a porta e clique em **Conectar**. Se aparecer “sem permissão”, rode
    `sudo usermod -aG dialout $USER` e entre de novo na sessão.
@@ -137,26 +137,30 @@ fica numa aba ao lado do painel frontal.
    a unidade (Hz, kHz, MHz, mHz, µHz — aceita vírgula); amplitude (Vpp), offset, duty e fase.
 3. O valor é enviado ao apertar Enter, ao usar as setas ou ao sair do campo, e o painel relê o gerador: o que
    aparece é o que o aparelho aceitou. **Ler do gerador** atualiza tudo; **Desligar saídas** desliga as duas.
+4. **Presets:** *Salvar atual…* guarda os dois canais ou um só; um preset de um canal pode ser aplicado no CH1
+   ou no CH2 (seletor *em*). Ao aplicar, as saídas são desligadas antes e religadas no fim. Os presets ficam em
+   `~/.config/psg9080-gui/presets.json`, o mesmo arquivo do psg-gui em Python.
 
-## 14. Resposta em frequência — Bode (Ferramentas → Resposta em frequência, Ctrl+B)
+## 14. Programa OpenHantekBode (resposta em frequência)
 
-Mede o ganho e a fase de um circuito (filtro, amplificador, malha de realimentação, filtro de saída de
-nobreak...) ponto a ponto, com o PSG9080 gerando o sinal e o DSO-2250 medindo.
+`./openhantek/OpenHantekBode` mede o ganho e a fase de um circuito (filtro, amplificador, malha de
+realimentação, filtro de saída de nobreak...) ponto a ponto, com o PSG9080 gerando o sinal e o DSO-2250
+medindo. Ele usa o osciloscópio e o gerador sozinho: feche o OpenHantek e o programa PSG9080 antes.
 
 **Ligações:** a saída do gerador escolhida em *Sinal de teste* vai à entrada do circuito; o canal escolhido em
-*Entrada do circuito* mede essa entrada; o outro canal mede a saída do circuito. Use a mesma atenuação de
-ponteira que está configurada no painel.
+*Entrada do circuito* mede essa entrada; o outro canal mede a saída do circuito. Escolha a ponteira de cada
+canal (x1, x10...). A tela pequena embaixo do gráfico mostra os dois canais ao vivo: confira as ligações nela
+antes de começar.
 
-**Varredura:** frequência inicial e final e pontos por década. A janela mostra a faixa possível com a memória
-atual (o mínimo depende da memória: com 10 k amostras fica perto de 0,5 Hz; o máximo é o do gerador, 80 MHz).
-Frequências baixas são lentas: cada ponto precisa capturar cerca de 10 períodos.
+**Varredura:** frequência inicial e final, pontos por década e média por ponto. A janela mostra a faixa possível
+com a memória escolhida (com 10 k amostras o mínimo fica perto de 0,5 Hz; com 512 k vai mais baixo, mas cada
+ponto demora mais; o máximo é o do gerador, 80 MHz). Frequências baixas são lentas: cada ponto captura cerca de
+10 períodos.
 
-**Como mede:** para cada frequência o programa ajusta o gerador, escolhe o tempo/div, descarta as aquisições
-antigas, ajusta o V/div dos dois canais (opção *Ajustar V/div automaticamente*) e calcula amplitude e fase só
-na frequência do gerador — ruído e harmônicos não entram. Acima de 50 MHz (metade da amostragem com dois
+**Como mede:** para cada frequência o programa ajusta o gerador, escolhe a duração da aquisição, ignora as
+aquisições que ainda podem ser da configuração anterior, ajusta a escala dos dois canais e calcula amplitude e
+fase só na frequência do gerador — ruído e harmônicos não entram. Acima de 50 MHz (metade da amostragem com dois
 canais) o sinal é medido pela frequência rebatida; como a frequência é conhecida, a medida continua válida.
-Durante a varredura o painel frontal e o painel do gerador ficam bloqueados; no fim o osciloscópio volta às
-escalas que estavam antes.
 
 **Calibração:** ligue as duas ponteiras no mesmo ponto (a saída do gerador, sem o circuito) e clique em
 **Calibrar...**. A resposta medida (diferenças entre canais, ponteiras e cabos, e a queda de banda do

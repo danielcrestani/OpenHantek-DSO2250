@@ -50,4 +50,4 @@ jobs:
           set -o pipefail
           cd build/openhantek && ctest --output-on-failure | tee ctest.log
           echo "::notice title=Testes::$(grep -E 'tests passed|testes' ctest.log | tail -1)"
-          for t in psg9080protocol bodeanalysis; do echo "::notice title=$t::$(./test_$t | tr '\n' ' ')"; done
+          for t in psg9080protocol bodeanalysis psg9080presets; do echo "::notice title=$t::$(./test_$t | tr '\n' ' ')"; done
