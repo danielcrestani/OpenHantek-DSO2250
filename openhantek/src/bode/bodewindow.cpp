@@ -193,6 +193,8 @@ QWidget *BodeWindow::makeSettings() {
     gf->addRow(tr("Amplitude"), amplitudeBox);
     gf->addRow(tr("Offset"), offsetBox);
     darkstyle::colorSection(genBox, darkstyle::orange());
+    darkstyle::plainSpin(amplitudeBox);
+    darkstyle::plainSpin(offsetBox);
     connect(portRefresh, &QPushButton::clicked, this, &BodeWindow::refreshPorts);
     connect(connectButton, &QPushButton::clicked, this, &BodeWindow::toggleGenerator);
     v->addWidget(genBox);
@@ -252,6 +254,8 @@ QWidget *BodeWindow::makeSettings() {
     limitsLabel->setProperty("role", "hint");
     wf->addRow(limitsLabel);
     darkstyle::colorSection(sweep, darkstyle::violet());
+    darkstyle::plainSpin(perDecadeBox);
+    darkstyle::plainSpin(averagesBox);
     v->addWidget(sweep);
 
     // Calibration

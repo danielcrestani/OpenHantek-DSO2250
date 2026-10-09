@@ -31,6 +31,7 @@ QDoubleSpinBox *makeSpin(int decimals, double min, double max, double step, cons
     box->setSingleStep(step);
     box->setSuffix(suffix);
     box->setKeyboardTracking(false); // send on Enter / arrows / focus out, not on every key
+    darkstyle::plainSpin(box);
     box->setAccelerated(true);
     return box;
 }

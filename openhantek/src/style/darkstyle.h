@@ -8,6 +8,7 @@
 #include <QPalette>
 #include <QPushButton>
 #include <QString>
+#include <QAbstractSpinBox>
 #include <QStyleFactory>
 
 /// \brief Look of the OpenHantek front panel, shared by the PSG9080 and OpenHantekBode programs:
@@ -86,24 +87,6 @@ inline QString panelSheet() {
            "QComboBox QAbstractItemView { background: #2b3038; color: #f0f2f5; selection-background-color: #2f6fbf;"
            "  border: 1px solid #555d6a; }"
            // light arrows (res/style.qrc): the Fusion arrows vanish on the dark fields
-           "QSpinBox, QDoubleSpinBox { padding-right: 20px; }"
-           "QSpinBox::up-button, QDoubleSpinBox::up-button, QSpinBox::down-button, QDoubleSpinBox::down-button {"
-           "  subcontrol-origin: border; width: 18px; height: 11px; background: #3a404a;"
-           "  border: 1px solid #555d6a; }"
-           "QSpinBox::up-button, QDoubleSpinBox::up-button { subcontrol-position: top right;"
-           "  border-top-right-radius: 4px; }"
-           "QSpinBox::down-button, QDoubleSpinBox::down-button { subcontrol-position: bottom right;"
-           "  border-bottom-right-radius: 4px; }"
-           "QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover, QSpinBox::down-button:hover,"
-           "  QDoubleSpinBox::down-button:hover { background: #475061; }"
-           "QSpinBox::up-arrow, QDoubleSpinBox::up-arrow { image: url(:/style/arrow-up@2x.png);"
-           "  width: 10px; height: 6px; }"
-           "QSpinBox::down-arrow, QDoubleSpinBox::down-arrow { image: url(:/style/arrow-down@2x.png);"
-           "  width: 10px; height: 6px; }"
-           "QSpinBox::up-arrow:disabled, QDoubleSpinBox::up-arrow:disabled {"
-           "  image: url(:/style/arrow-up-disabled@2x.png); }"
-           "QSpinBox::down-arrow:disabled, QDoubleSpinBox::down-arrow:disabled {"
-           "  image: url(:/style/arrow-down-disabled@2x.png); }"
            "QComboBox::drop-down { subcontrol-origin: padding; subcontrol-position: center right; width: 20px;"
            "  border: none; }"
            "QComboBox::down-arrow { image: url(:/style/arrow-down@2x.png); width: 10px; height: 6px; }"
@@ -114,6 +97,13 @@ inline QString panelSheet() {
            "QProgressBar::chunk { background: #2f6fbf; border-radius: 3px; }"
            "QScrollArea { background: transparent; border: none; }"
            "QSplitter::handle { background: #1b1e24; width: 3px; }";
+}
+
+/// Number fields without the up/down buttons (like the OpenHantek panel): wheel and arrow keys still work.
+inline void plainSpin(QAbstractSpinBox *box) {
+    box->setButtonSymbols(QAbstractSpinBox::NoButtons);
+    box->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    box->setToolTip(QObject::tr("Digite o valor, ou use a roda do mouse / as setas ↑ ↓ do teclado"));
 }
 
 /// Colored section like the CH1/CH2/Horizontal/Trigger boxes of the OpenHantek panel.
