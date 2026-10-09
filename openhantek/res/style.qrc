@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/style">
+        <file alias="arrow-up@2x.png">style/arrow-up@2x.png</file>
+        <file alias="arrow-down@2x.png">style/arrow-down@2x.png</file>
+        <file alias="arrow-up-disabled@2x.png">style/arrow-up-disabled@2x.png</file>
+        <file alias="arrow-down-disabled@2x.png">style/arrow-down-disabled@2x.png</file>
+    </qresource>
+</RCC>

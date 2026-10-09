@@ -92,7 +92,7 @@ if(NOT WIN32)
 endif()
 
 # --- psg9080_core
-add_library(psg9080_core OBJECT ${GEN_SRC} ${GEN_HDR})
+add_library(psg9080_core OBJECT ${GEN_SRC} ${GEN_HDR} src/style/darkstyle.h res/style.qrc) # look shared by PSG9080 and Bode
 target_link_libraries(psg9080_core PUBLIC ${OPENHANTEK_QT_LIBS})
 openhantek_setup(psg9080_core)
 
