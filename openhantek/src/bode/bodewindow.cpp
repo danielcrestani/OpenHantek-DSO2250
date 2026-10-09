@@ -525,8 +525,13 @@ void BodeWindow::frameReady(quint64 sequence) {
     if (!tap->latest(frame) || frame.sequence < sequence) return;
     if (frame.sequence <= lastSequence) return; // already handled (notifications can pile up)
     lastSequence = frame.sequence;
-    const double vdiv[2] = {voltsPerDiv(0), voltsPerDiv(1)};
-    preview->setFrame(frame, vdiv);
+    // The small screen is only for looking at the connections: ~25 frames/s is plenty, the rest of the GUI time
+    // stays free for the menus and the plot
+    if (!previewClock.isValid() || previewClock.elapsed() >= 40) {
+        previewClock.restart();
+        const double vdiv[2] = {voltsPerDiv(0), voltsPerDiv(1)};
+        preview->setFrame(frame, vdiv);
+    }
 
     if (frame.sequence <= ignoreUntil) return;
     if (!sweeping) {

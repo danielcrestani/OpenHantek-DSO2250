@@ -16,10 +16,11 @@ void SampleTap::capture(const DSOsamples *samples) {
         frame.samplerate = samples->samplerate;
         seq = ++frame.sequence;
     }
-    emit frameReady(seq); // queued to the GUI thread (this object lives there)
+    if (!pending.exchange(true)) emit frameReady(seq); // queued to the GUI thread (this object lives there)
 }
 
 bool SampleTap::latest(ScopeFrame &out) const {
+    pending = false; // frames arriving from now on post a new notification
     QMutexLocker lock(&mutex);
     if (frame.sequence == 0) return false;
     out = frame;

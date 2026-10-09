@@ -5,6 +5,8 @@
 #include <QMutex>
 #include <QObject>
 
+#include <atomic>
+
 #include <vector>
 
 struct DSOsamples;
@@ -38,4 +40,7 @@ class SampleTap : public QObject {
   private:
     mutable QMutex mutex;
     ScopeFrame frame;
+    /// A notification is already queued: the GUI will read the newest frame anyway, so no new event is posted
+    /// (keeps the event queue short when the GUI is busy, the menus stay responsive).
+    mutable std::atomic_bool pending{false};
 };

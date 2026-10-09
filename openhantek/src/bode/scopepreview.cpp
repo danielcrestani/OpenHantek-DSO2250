@@ -5,7 +5,7 @@
 #include "style/darkstyle.h"
 
 #include <QPainter>
-#include <QPainterPath>
+#include <QPolygonF>
 
 #include <algorithm>
 #include <cmath>
@@ -55,39 +55,35 @@ void ScopePreview::paintEvent(QPaintEvent *) {
     p.setPen(QPen(QColor(255, 255, 255, 90)));
     p.drawLine(QPointF(r.left(), r.center().y()), QPointF(r.right(), r.center().y()));
 
-    // Traces: min/max per pixel column (no peak disappears when the record is compressed)
-    p.setRenderHint(QPainter::Antialiasing, true);
+    // Traces: min/max per pixel column (no peak disappears when the record is compressed). Drawn without
+    // antialiasing, as a polyline of whole pixels: a noisy trace is thousands of tall zigzags, and stroking that
+    // with antialiasing took most of the GUI time (menus froze).
     const int columns = std::max(1, (int)r.width());
+    QPolygonF line;
+    line.reserve(2 * columns);
     for (size_t ch = 0; ch < 2 && ch < frame.data.size(); ++ch) {
         const std::vector<double> &x = frame.data[ch];
         if (x.empty()) continue;
         const double perDiv = vdiv[ch] > 0 ? vdiv[ch] : 1;
         auto y = [&](double v) {
             const double clamped = std::max(-4.2, std::min(4.2, v / perDiv));
-            return r.center().y() - clamped * r.height() / 8.0;
+            return std::round(r.center().y() - clamped * r.height() / 8.0);
         };
-        QPainterPath path;
+        line.clear();
+        const size_t n = x.size();
         for (int c = 0; c < columns; ++c) {
-            const size_t a = x.size() * (size_t)c / (size_t)columns;
-            const size_t b = std::max(a + 1, x.size() * (size_t)(c + 1) / (size_t)columns);
-            double mn = x[a], mx = x[a];
-            for (size_t k = a; k < b && k < x.size(); ++k) {
-                mn = std::min(mn, x[k]);
-                mx = std::max(mx, x[k]);
-            }
-            const double px = r.left() + c + 0.5;
-            if (c == 0)
-                path.moveTo(px, y(mx));
-            else
-                path.lineTo(px, y(mx));
-            path.lineTo(px, y(mn));
+            const size_t a = n * (size_t)c / (size_t)columns;
+            const size_t b = std::min(n, std::max(a + 1, n * (size_t)(c + 1) / (size_t)columns));
+            if (a >= n) break;
+            const auto mm = std::minmax_element(x.begin() + a, x.begin() + b);
+            const double px = r.left() + c;
+            line << QPointF(px, y(*mm.second)) << QPointF(px, y(*mm.first));
         }
-        p.setPen(QPen(kChannelColor[ch], 1.2));
-        p.drawPath(path);
+        p.setPen(QPen(kChannelColor[ch], 1));
+        p.drawPolyline(line);
     }
 
     // Labels under the screen
-    p.setRenderHint(QPainter::Antialiasing, false);
     QFont f = font();
     f.setPointSizeF(f.pointSizeF() * 0.9);
     p.setFont(f);

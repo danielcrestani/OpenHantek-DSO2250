@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <QElapsedTimer>
 #include <QMainWindow>
 
 #include <vector>
@@ -127,6 +128,7 @@ class BodeWindow : public QMainWindow {
     BodePlot *plot;
     ScopePreview *preview;
     QTimer *watchdog;
+    QElapsedTimer previewClock; ///< limits the small screen to ~25 frames/s
 
     // oscilloscope state
     unsigned gainIndex[2] = {0, 0};
