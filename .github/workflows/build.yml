@@ -5,6 +5,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write # publishes the screenshots on the ci-shots branch
+
 jobs:
   linux-qt6:
     # Same base as Pop!_OS 22.04: Qt 6.2, GCC 11, libusb 1.0.25
@@ -57,11 +60,9 @@ jobs:
         run: |
           sudo apt-get install -y --no-install-recommends fonts-dejavu-core > /dev/null
           cd build/openhantek
-          QT_QPA_PLATFORM=offscreen ./ui_snapshots shots
-          # each image goes out as base64 in numbered notices (read back through the API)
-          for f in shots/*.jpg; do
-            n=$(basename "$f" .jpg); i=0
-            base64 -w0 "$f" | fold -w 60000 | while IFS= read -r part; do
-              echo "::notice title=shot-$n-$i::$part"; i=$((i+1))
-            done
-          done
+          QT_QPA_PLATFORM=offscreen ./ui_snapshots "$GITHUB_WORKSPACE/shots"
+          # publish the images on the ci-shots branch (one commit, replaced every run)
+          cd "$GITHUB_WORKSPACE/shots"
+          git init -q && git checkout -q -b ci-shots
+          git -c user.name=ci -c user.email=ci@localhost add . && git -c user.name=ci -c user.email=ci@localhost commit -qm "capturas de ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" ci-shots
