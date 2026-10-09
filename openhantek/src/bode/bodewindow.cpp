@@ -23,7 +23,7 @@
 #include <QSerialPortInfo>
 #include <QSettings>
 #include <QSpinBox>
-#include <QSplitter>
+#include <QScrollBar>
 #include <QTextStream>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -101,15 +101,21 @@ BodeWindow::BodeWindow(HantekDsoControl *dsoControl, const Dso::ControlSpecifica
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
     scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff); // the panel fits; only vertical scrolling
-    scroll->setMinimumWidth(std::max(390, settingsPanel->minimumSizeHint().width() + 24));
+    // Fixed width like the OpenHantek front panel: only the plot side grows with the window
+    settingsPanel->setStyleSheet(darkstyle::panelSheet());
+    settingsPanel->ensurePolished();
+    const int panelWidth = std::max(400, settingsPanel->sizeHint().width());
+    scroll->setFixedWidth(panelWidth + scroll->verticalScrollBar()->sizeHint().width() + 4);
 
-    QSplitter *split = new QSplitter(Qt::Horizontal);
-    split->addWidget(scroll);
-    split->addWidget(right);
-    split->setStretchFactor(1, 1);
-    split->setStyleSheet(darkstyle::panelSheet());
-    rightLayout->setContentsMargins(4, 6, 6, 6);
-    setCentralWidget(split);
+    QWidget *central = new QWidget;
+    central->setStyleSheet(darkstyle::panelSheet());
+    QHBoxLayout *mainLayout = new QHBoxLayout(central);
+    mainLayout->setContentsMargins(4, 4, 4, 4);
+    mainLayout->setSpacing(6);
+    mainLayout->addWidget(scroll);
+    mainLayout->addWidget(right, 1);
+    rightLayout->setContentsMargins(0, 2, 2, 2);
+    setCentralWidget(central);
 
     watchdog = new QTimer(this);
     watchdog->setSingleShot(true);
