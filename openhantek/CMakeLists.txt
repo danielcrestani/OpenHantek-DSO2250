@@ -83,6 +83,8 @@ endfunction()
 # --- openhantek_core
 add_library(openhantek_core OBJECT ${CORE_SRC} ${CORE_HDR} ${CORE_UI} res/application.qrc res/firmwares.qrc)
 target_link_libraries(openhantek_core PUBLIC ${OPENHANTEK_QT_LIBS})
+# selectdevice/*.h include the ui_*.h that AUTOUIC generates for this library: make them visible to users
+target_include_directories(openhantek_core PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/openhantek_core_autogen/include")
 openhantek_setup(openhantek_core)
 if(NOT WIN32)
     target_include_directories(openhantek_core PUBLIC ${LIBUSB_INCLUDE_DIRS})

@@ -31,11 +31,11 @@ jobs:
         if: always()
         run: |
           # each GCC warning/error becomes an annotation (visible in the run summary and through the API)
-          grep -E "^/.+:[0-9]+:[0-9]+: (warning|error):" build.log | sort -u > diag.txt || true
-          echo "::notice title=Compilação::$(grep -c ': warning:' diag.txt || true) avisos, $(grep -c ': error:' diag.txt || true) erros"
+          grep -E "^/.+:[0-9]+:[0-9]+: (warning|error|fatal error):" build.log | sort -u > diag.txt || true
+          echo "::notice title=Compilação::$(grep -c ': warning:' diag.txt || true) avisos, $(grep -c -E ': (fatal )?error:' diag.txt || true) erros"
           while IFS= read -r line; do
             file=$(echo "$line" | cut -d: -f1 | sed "s#^$GITHUB_WORKSPACE/##"); ln=$(echo "$line" | cut -d: -f2)
-            kind=$(echo "$line" | cut -d: -f4 | tr -d ' '); msg=$(echo "$line" | cut -d: -f5-)
+            kind=$(echo "$line" | cut -d: -f4 | sed 's/fatal //' | tr -d ' '); msg=$(echo "$line" | cut -d: -f5-)
             echo "::${kind} file=${file},line=${ln}::${msg}"
           done < diag.txt
           # linker, CMake and make errors have no file:line prefix
