@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 
-#include "GeneratorDock.h"
+#include "GeneratorPanel.h"
 
 #include <QComboBox>
 #include <QDoubleSpinBox>
@@ -15,6 +15,7 @@
 #include <QSignalBlocker>
 #include <QVBoxLayout>
 
+#include <algorithm>
 #include <cmath>
 
 using namespace psg9080;
@@ -43,7 +44,7 @@ const char *kUnitNames[] = {"Hz", "kHz", "MHz", "mHz", "µHz"};
 
 } // namespace
 
-bool GeneratorDock::parseNumber(const QString &text, double &value) {
+bool GeneratorPanel::parseNumber(const QString &text, double &value) {
     QString t = text.trimmed();
     t.remove(' ');
     t.replace(',', '.');
@@ -52,7 +53,7 @@ bool GeneratorDock::parseNumber(const QString &text, double &value) {
     return ok && std::isfinite(value);
 }
 
-QString GeneratorDock::formatNumber(double value, int maxDecimals) {
+QString GeneratorPanel::formatNumber(double value, int maxDecimals) {
     QString s = QString::number(value, 'f', maxDecimals);
     if (s.contains('.')) {
         while (s.endsWith('0')) s.chop(1);
@@ -62,11 +63,9 @@ QString GeneratorDock::formatNumber(double value, int maxDecimals) {
     return s.replace('.', ',');
 }
 
-GeneratorDock::GeneratorDock(Psg9080 *generator, QWidget *parent)
-    : QDockWidget(tr("Gerador PSG9080"), parent), gen(generator) {
-    setObjectName("GeneratorDock");
-    QWidget *root = new QWidget(this);
-    QVBoxLayout *layout = new QVBoxLayout(root);
+GeneratorPanel::GeneratorPanel(Psg9080 *generator, Qt::Orientation channels, QWidget *parent)
+    : QWidget(parent), gen(generator) {
+    QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setContentsMargins(6, 6, 6, 6);
     layout->setSpacing(8);
 
@@ -84,13 +83,16 @@ GeneratorDock::GeneratorDock(Psg9080 *generator, QWidget *parent)
     portRow->addWidget(refreshButton);
     portRow->addWidget(connectButton);
     layout->addLayout(portRow);
-    connect(refreshButton, &QPushButton::clicked, this, &GeneratorDock::refreshPorts);
-    connect(connectButton, &QPushButton::clicked, this, &GeneratorDock::toggleConnection);
+    connect(refreshButton, &QPushButton::clicked, this, &GeneratorPanel::refreshPorts);
+    connect(connectButton, &QPushButton::clicked, this, &GeneratorPanel::toggleConnection);
 
     // Channels
     ui.resize(2);
-    layout->addWidget(makeChannel(1, "#e6b800"));
-    layout->addWidget(makeChannel(2, "#2fa8d8"));
+    QBoxLayout *channelBox = channels == Qt::Horizontal ? static_cast<QBoxLayout *>(new QHBoxLayout)
+                                                        : static_cast<QBoxLayout *>(new QVBoxLayout);
+    channelBox->addWidget(makeChannel(1, "#e6b800"));
+    channelBox->addWidget(makeChannel(2, "#2fa8d8"));
+    layout->addLayout(channelBox);
 
     readButton = new QPushButton(tr("Ler do gerador"));
     readButton->setToolTip(tr("Atualiza o painel com os valores atuais do gerador"));
@@ -100,7 +102,7 @@ GeneratorDock::GeneratorDock(Psg9080 *generator, QWidget *parent)
     actions->addWidget(readButton);
     actions->addWidget(allOffButton);
     layout->addLayout(actions);
-    connect(readButton, &QPushButton::clicked, this, &GeneratorDock::refresh);
+    connect(readButton, &QPushButton::clicked, this, &GeneratorPanel::refresh);
     connect(allOffButton, &QPushButton::clicked, this, [this]() {
         if (gen->setOutputs(false, false)) {
             showOutputs(false, false);
@@ -114,7 +116,6 @@ GeneratorDock::GeneratorDock(Psg9080 *generator, QWidget *parent)
     status->setWordWrap(true);
     layout->addWidget(status);
     layout->addStretch(1);
-    setWidget(root);
 
     connect(gen, &Psg9080::connectionChanged, this, [this](bool) { updateConnectionUi(); });
     connect(gen, &Psg9080::channelWritten, this, [this](int channel) {
@@ -126,7 +127,7 @@ GeneratorDock::GeneratorDock(Psg9080 *generator, QWidget *parent)
     updateConnectionUi();
 }
 
-QGroupBox *GeneratorDock::makeChannel(int channel, const QString &color) {
+QGroupBox *GeneratorPanel::makeChannel(int channel, const QString &color) {
     ChannelUi &c = ui[channel - 1];
     c.box = new QGroupBox(tr("CH%1").arg(channel));
     c.box->setStyleSheet(QString("QGroupBox { font-weight: bold; border: 2px solid %1; border-radius: 5px; "
@@ -214,7 +215,7 @@ QGroupBox *GeneratorDock::makeChannel(int channel, const QString &color) {
     return c.box;
 }
 
-void GeneratorDock::refreshPorts() {
+void GeneratorPanel::refreshPorts() {
     const QString current =
         portBox->currentText().isEmpty() ? QSettings().value("Generator/port", "/dev/ttyUSB0").toString()
                                          : portBox->currentText();
@@ -234,7 +235,7 @@ void GeneratorDock::refreshPorts() {
         portBox->setEditText(current);
 }
 
-void GeneratorDock::toggleConnection() {
+void GeneratorPanel::toggleConnection() {
     if (gen->isOpen()) {
         gen->close();
         message(tr("Desconectado."));
@@ -251,7 +252,7 @@ void GeneratorDock::toggleConnection() {
     refresh();
 }
 
-void GeneratorDock::updateConnectionUi() {
+void GeneratorPanel::updateConnectionUi() {
     const bool open = gen->isOpen();
     connectButton->setText(open ? tr("Desconectar") : tr("Conectar"));
     connectButton->setEnabled(!locked);
@@ -262,7 +263,7 @@ void GeneratorDock::updateConnectionUi() {
     allOffButton->setEnabled(open); // always available while connected, also during a sweep
 }
 
-void GeneratorDock::setLocked(bool lock, const QString &reason) {
+void GeneratorPanel::setLocked(bool lock, const QString &reason) {
     locked = lock;
     updateConnectionUi();
     if (lock) {
@@ -273,12 +274,12 @@ void GeneratorDock::setLocked(bool lock, const QString &reason) {
     }
 }
 
-void GeneratorDock::refresh() {
+void GeneratorPanel::refresh() {
     readChannel(1);
     readChannel(2);
 }
 
-void GeneratorDock::readChannel(int channel) {
+void GeneratorPanel::readChannel(int channel) {
     if (!gen->isOpen()) return;
     Psg9080::ChannelState s;
     if (gen->readChannel(channel, s))
@@ -287,7 +288,7 @@ void GeneratorDock::readChannel(int channel) {
         message(gen->lastError(), true);
 }
 
-void GeneratorDock::showChannel(int channel, const Psg9080::ChannelState &s) {
+void GeneratorPanel::showChannel(int channel, const Psg9080::ChannelState &s) {
     ChannelUi &c = ui[channel - 1];
     c.frequencyHz = s.frequency;
     {
@@ -307,7 +308,7 @@ void GeneratorDock::showChannel(int channel, const Psg9080::ChannelState &s) {
     c.frequency->setModified(false);
 }
 
-void GeneratorDock::showOutputs(bool ch1, bool ch2) {
+void GeneratorPanel::showOutputs(bool ch1, bool ch2) {
     const bool states[2] = {ch1, ch2};
     for (int i = 0; i < 2; ++i) {
         QSignalBlocker block(ui[i].output);
@@ -316,13 +317,14 @@ void GeneratorDock::showOutputs(bool ch1, bool ch2) {
     }
 }
 
-void GeneratorDock::apply(int channel, bool ok) {
+void GeneratorPanel::apply(int channel, bool ok) {
     if (!ok) message(gen->lastError(), true);
     // channelWritten already refreshed the channel on success; on failure put back the device values
     if (!ok) readChannel(channel);
 }
 
-void GeneratorDock::message(const QString &text, bool error) {
+void GeneratorPanel::message(const QString &text, bool error) {
     status->setStyleSheet(error ? "color: #c0392b;" : "");
     status->setText(text);
+    emit statusMessage(text, error);
 }

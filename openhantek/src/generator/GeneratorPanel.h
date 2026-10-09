@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <QDockWidget>
+#include <QWidget>
 
 #include <vector>
 
@@ -15,25 +15,32 @@ class QLabel;
 class QLineEdit;
 class QPushButton;
 
-/// \brief Front panel for the PSG9080 function generator: connection and both channels.
+/// \brief Panel for the PSG9080 function generator: connection, both channels, read/all-off buttons.
 ///
 /// Values are sent on Enter / focus out / arrow steps and read back from the device, so the panel always
-/// shows what the generator accepted. While a Bode sweep runs the panel is locked (setLocked).
-class GeneratorDock : public QDockWidget {
+/// shows what the generator accepted. setLocked() disables it while another part drives the generator.
+class GeneratorPanel : public QWidget {
     Q_OBJECT
 
   public:
-    GeneratorDock(Psg9080 *generator, QWidget *parent);
+    /// `channels`: Qt::Horizontal puts CH1 and CH2 side by side, Qt::Vertical stacks them.
+    GeneratorPanel(Psg9080 *generator, Qt::Orientation channels, QWidget *parent = nullptr);
 
     /// Lock the controls (e.g. during a frequency sweep); unlocking reads the device again.
     void setLocked(bool locked, const QString &reason = QString());
     /// Read both channels from the device.
     void refresh();
+    /// Show a message in the panel status line.
+    void message(const QString &text, bool error = false);
 
     /// Parse a number typed by the user, accepting a decimal comma ("1,5") or point.
     static bool parseNumber(const QString &text, double &value);
     /// Format a number without trailing zeros, with a decimal comma.
     static QString formatNumber(double value, int maxDecimals = 9);
+
+  signals:
+    /// Emitted with every status message (for a status bar).
+    void statusMessage(const QString &text, bool error);
 
   private:
     struct ChannelUi {
@@ -58,7 +65,6 @@ class GeneratorDock : public QDockWidget {
     void showOutputs(bool ch1, bool ch2);
     /// Run a write; on failure show the message and read the device again.
     void apply(int channel, bool ok);
-    void message(const QString &text, bool error = false);
 
     Psg9080 *gen;
     std::vector<ChannelUi> ui; ///< index 0 = CH1
