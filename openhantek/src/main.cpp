@@ -19,6 +19,7 @@
 // DSO core logic
 #include "dsomodel.h"
 #include "hantekdsocontrol.h"
+#include "usb/libusbexit.h"
 #include "usb/usbdevice.h"
 
 // Post processing
@@ -76,17 +77,6 @@ void applySettingsToDevice(HantekDsoControl *dsoControl, DsoSettingsScope *scope
     dsoControl->setTriggerSlope(scope->trigger.slope);
     dsoControl->setTriggerSource(scope->trigger.special, scope->trigger.source);
     dsoControl->setTriggerHFReject(scope->trigger.hfReject);
-}
-
-/// libusb_exit() aborts on libusb 1.0.25 ("usbi_hotplug_exit: Assertion
-/// dev->parent_dev != next_dev failed"), the version shipped by Ubuntu/Pop!_OS
-/// 22.04; fixed in 1.0.26. On that version the context is left for the OS to
-/// release at process exit (devices are already closed), so closing the
-/// program no longer ends in "Abortado (imagem do núcleo gravada)".
-static void exitLibUsb(libusb_context *context) {
-    const libusb_version *v = libusb_get_version();
-    if (v->major == 1 && v->minor == 0 && v->micro == 25) return;
-    libusb_exit(context);
 }
 
 /// \brief Initialize resources and translations and show the main window.

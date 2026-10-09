@@ -2,22 +2,17 @@
 
 #pragma once
 
-#include <QWidget>
+#include <QMainWindow>
 
-#include <memory>
 #include <vector>
 
 #include "bode/bodeanalysis.h"
 #include "bode/bodeplot.h"
+#include "bode/sampletap.h"
 #include "hantekdso/controlspecification.h"
-#include "post/ppresult.h"
 
-class DsoWidget;
-class GeneratorDock;
 class HantekDsoControl;
-class HorizontalDock;
 class Psg9080;
-class QAction;
 class QCheckBox;
 class QComboBox;
 class QDoubleSpinBox;
@@ -27,38 +22,27 @@ class QProgressBar;
 class QPushButton;
 class QSpinBox;
 class QTimer;
-class TriggerDock;
-class VoltageDock;
-struct DsoSettingsScope;
+class ScopePreview;
 
-/// \brief Frequency response analyzer: PSG9080 sweeps the frequency, the DSO measures input and output.
+/// \brief OpenHantek Bode: frequency response with the PSG9080 (signal) and the DSO-2250 (measurement).
 ///
-/// For every frequency the window sets the generator, picks a timebase with about 10 periods on screen,
-/// discards the acquisitions that may still hold the previous setting, adjusts V/div of both channels and
-/// averages a few measurements (bode::measure). The scope is driven through the docks, so the screen and
-/// the front panel follow the sweep; the previous scope settings are restored at the end.
-class BodeWindow : public QWidget {
+/// The window owns the generator connection and drives the oscilloscope directly. For every frequency it sets
+/// the generator, picks a record time with about 10 periods, ignores the acquisitions that may still hold the
+/// previous setting (counted by sequence number), adjusts the gain of both channels and averages a few
+/// measurements (bode::measure). A small live view shows both channels all the time.
+class BodeWindow : public QMainWindow {
     Q_OBJECT
 
   public:
-    BodeWindow(Psg9080 *generator, GeneratorDock *generatorDock, HantekDsoControl *dsoControl,
-               DsoSettingsScope *scope, const Dso::ControlSpecification *spec, VoltageDock *voltageDock,
-               HorizontalDock *horizontalDock, TriggerDock *triggerDock, DsoWidget *dsoWidget,
-               QAction *samplingAction, QWidget *parent);
+    BodeWindow(HantekDsoControl *dsoControl, const Dso::ControlSpecification *spec, SampleTap *tap,
+               QWidget *parent = nullptr);
 
-    bool running() const { return state != State::Idle; }
-    /// New acquisition (GUI thread)
-    void process(std::shared_ptr<PPresult> data);
-
-  signals:
-    void runningChanged(bool running);
+    bool running() const { return sweeping; }
 
   protected:
     void closeEvent(QCloseEvent *event) override;
-    void showEvent(QShowEvent *event) override;
 
   private:
-    enum class State { Idle, Settling, Measuring };
     struct Result {
         double freq = 0;
         bode::Phasor h{1, 0};
@@ -68,43 +52,45 @@ class BodeWindow : public QWidget {
         double gainDb() const;
         double phaseDeg() const;
     };
-    struct Saved {
-        double timebase = 0;
-        std::vector<unsigned> gain;
-        std::vector<double> offset;
-        std::vector<bool> used;
-        Dso::TriggerMode triggerMode;
-        bool triggerSpecial = false;
-        unsigned triggerSource = 0;
-        double triggerLevel = 0;
-        bool wasSampling = false;
-        bool generatorOutput = false;
-    };
 
-    // ui
+    // interface
     QWidget *makeSettings();
     void loadSettings();
     void saveSettings();
     void updateLimits();
-    void updateOutputLabel();
+    void updateRoles();
     void updateCalibrationUi();
     void setUiRunning(bool running);
     void status(const QString &text, bool error = false);
-    bool readFrequency(QLineEdit *edit, QComboBox *unit, double &hz);
+    bool readFrequency(QLineEdit *edit, QComboBox *unit, double &hz) const;
 
-    // sweep
-    void start(bool calibrationRun);
-    void stop();
-    void finish(bool completed, const QString &message = QString());
-    void startPoint();
-    void setTimebaseFor(double freq);
-    void changed(int discardFrames);
-    bool autoRange(const DataChannel *in, const DataChannel *out);
-    void finishPoint();
-    void armWatchdog();
+    // generator connection
+    void refreshPorts();
+    void toggleGenerator();
+    void updateGeneratorUi();
+
+    // oscilloscope
+    void configureScope();
+    void setGain(int channel, unsigned index);
+    double voltsPerDiv(int channel) const;
+    double fullScale(int channel) const; ///< peak volts at the probe tip that still fit the screen
+    unsigned recordLength() const;
     double minRecordTime() const;
     double maxRecordTime() const;
     double minimumFrequency() const;
+    void setRecordTime(double seconds);
+    bool autoRange(const ScopeFrame &frame);
+    void ignoreFrames(int count);
+
+    // sweep
+    void frameReady(quint64 sequence);
+    void start(bool calibrationRun);
+    void finish(bool completed, const QString &message = QString());
+    void startPoint();
+    void measureFrame(const ScopeFrame &frame);
+    void finishPoint();
+    void nextPoint();
+    void armWatchdog();
     int refChannel() const;
     int outChannel() const;
     int genChannel() const;
@@ -115,47 +101,50 @@ class BodeWindow : public QWidget {
     void copyImage();
     void loadCalibration();
     void saveCalibration();
-    std::vector<BodePlot::Point> plotPoints() const;
 
-    Psg9080 *gen;
-    GeneratorDock *genDock;
-    HantekDsoControl *dsoControl;
-    DsoSettingsScope *scope;
+    HantekDsoControl *dso;
     const Dso::ControlSpecification *spec;
-    VoltageDock *voltageDock;
-    HorizontalDock *horizontalDock;
-    TriggerDock *triggerDock;
-    DsoWidget *dsoWidget;
-    QAction *samplingAction;
+    SampleTap *tap;
+    Psg9080 *gen;
 
-    // settings widgets
-    QComboBox *genChannelBox, *refChannelBox;
+    // widgets
+    QComboBox *portBox;
+    QPushButton *portRefresh, *connectButton;
+    QLabel *generatorState;
+    QComboBox *genChannelBox, *refChannelBox, *couplingBox, *memoryBox;
+    QComboBox *probeBox[2];
     QLabel *outChannelLabel, *limitsLabel;
     QLineEdit *startEdit, *stopEdit;
     QComboBox *startUnit, *stopUnit;
     QSpinBox *perDecadeBox, *averagesBox;
     QDoubleSpinBox *amplitudeBox, *offsetBox;
-    QCheckBox *autoRangeBox, *useCalibrationBox;
+    QCheckBox *useCalibrationBox;
     QLabel *calibrationLabel;
     QPushButton *startButton, *calibrateButton, *csvButton, *imageButton, *copyButton;
     QWidget *settingsPanel;
     QProgressBar *progress;
     QLabel *statusLabel;
     BodePlot *plot;
+    ScopePreview *preview;
     QTimer *watchdog;
 
+    // oscilloscope state
+    unsigned gainIndex[2] = {0, 0};
+    double probe[2] = {1, 1};
+    double recordTime = 1e-2;
+    quint64 lastSequence = 0;
+    quint64 ignoreUntil = 0; ///< frames with a sequence up to this may hold an old setting
+    int idleRangeSteps = 0;
+
     // sweep state
-    State state = State::Idle;
+    bool sweeping = false;
     bool calibrating = false;
-    Saved saved;
+    bool generatorWasOn = false;
     std::vector<double> freqs;
     size_t index = 0;
-    int discard = 0;
     int rangeSteps = 0;
     int attempts = 0;
     bool slowerTried = false;
-    double recordTime = 0;
-    // averaging of the current point
     int count = 0;
     bode::Phasor sumH{0, 0};
     double sumIn = 0, sumOut = 0, minSnrIn = 1e9, minSnrOut = 1e9;
