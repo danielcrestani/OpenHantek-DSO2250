@@ -22,7 +22,7 @@
 struct DsoSettingsView;
 struct DsoSettingsScope;
 struct DsoSettingsScopeCursor;
-class PPresult;
+#include "post/ppresult.h"
 
 /// \brief Transparent layer over the scope that marks the fundamental (F) and the
 /// salient harmonics (2..10) of each spectrum, like a bench FFT analyzer.

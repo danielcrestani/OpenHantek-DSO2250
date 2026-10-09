@@ -17,8 +17,8 @@ class SiSpinBox;
 
 struct DsoSettingsScope;
 
-Q_DECLARE_METATYPE(std::vector<unsigned>)
-Q_DECLARE_METATYPE(std::vector<double>)
+// std::vector<T> is a built-in Qt meta type (Qt 5 and 6): no Q_DECLARE_METATYPE needed;
+// declaring it again breaks Qt 6 builds when a signal used the type first.
 
 /// \brief Dock window for the horizontal axis.
 /// It contains the settings for the timebase and the display format.

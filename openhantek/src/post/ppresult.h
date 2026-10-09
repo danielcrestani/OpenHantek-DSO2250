@@ -2,9 +2,11 @@
 
 #pragma once
 
+#include <QMetaType>
 #include <QVector3D>
 #include <QReadWriteLock>
 
+#include <memory>
 #include <vector>
 #include "hantekprotocol/types.h"
 
@@ -82,3 +84,7 @@ class PPresult {
   private:
     std::vector<DataChannel> analyzedData; ///< The analyzed data for each channel
 };
+
+// Declared next to the type: Qt 6's moc registers signal/slot argument types
+// eagerly, so the declaration must be visible wherever PPresult is used.
+Q_DECLARE_METATYPE(std::shared_ptr<PPresult>)
