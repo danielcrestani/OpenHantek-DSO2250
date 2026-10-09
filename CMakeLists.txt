@@ -28,12 +28,17 @@ else()
 endif()
 
 if("${CMAKE_SYSTEM}" MATCHES "Linux")
-  if(EXISTS "/lib/udev/rules.d/")
-    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/firmware/60-hantek.rules"
-      DESTINATION "/lib/udev/rules.d/" COMPONENT Runtime)
-  else()
-    message(WARNING "Could not find udev rules directory (/lib/udev/rules.d/), skipping installation of udev rules.")
-  endif()
+  # udev rule: the logged-in user gets access to the oscilloscope without sudo
+  install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/firmware/60-hantek.rules" DESTINATION "/lib/udev/rules.d/")
+  # application menu entries and icons of the three programs
+  foreach(app openhantek psg9080 openhantek-bode)
+    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/${app}.desktop" DESTINATION "share/applications")
+    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/openhantek/res/icons/${app}.svg"
+      DESTINATION "share/icons/hicolor/scalable/apps")
+    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/openhantek/res/icons/${app}.png"
+      DESTINATION "share/icons/hicolor/128x128/apps")
+  endforeach()
+  install(FILES COPYING DESTINATION "share/doc/openhantek-dso2250" RENAME copyright)
 endif()
 
 # Add auxiliary files to the project, so that these files appear in VisualStudio/QtCreator

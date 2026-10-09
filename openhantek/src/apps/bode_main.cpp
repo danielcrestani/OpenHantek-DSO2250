@@ -2,6 +2,7 @@
 // OpenHantek Bode: frequency response with the PSG9080 function generator and the Hantek DSO-2250.
 
 #include <QApplication>
+#include <QIcon>
 #include <QCoreApplication>
 #include <QLibraryInfo>
 #include <QLocale>
@@ -25,6 +26,8 @@ int main(int argc, char *argv[]) {
     QCoreApplication::setApplicationName("OpenHantek Bode");
     QCoreApplication::setApplicationVersion(VERSION);
     QApplication app(argc, argv);
+    QGuiApplication::setDesktopFileName("openhantek-bode"); // taskbar icon from openhantek-bode.desktop
+    app.setWindowIcon(QIcon(":/icons/openhantek-bode.png"));
     darkstyle::applyApplicationLook(app);
 
     QTranslator qtTranslator; // Portuguese for the Qt standard dialogs

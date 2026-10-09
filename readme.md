@@ -58,7 +58,21 @@ O DSO-2250 e a porta serial do PSG9080 só podem ser usados por um programa de c
 Guia completo de uso: **[docs/dso2250-guia.md](docs/dso2250-guia.md)** ·
 Lista de modificações: **[MODIFICACOES.md](MODIFICACOES.md)**
 
-## Compilar e instalar (Pop!_OS / Ubuntu / Debian)
+## Instalar o pacote pronto (Pop!_OS / Ubuntu 22.04 ou mais novo)
+
+Baixe o `.deb` da [**versão contínua**](https://github.com/danielcrestani/OpenHantek-DSO2250/releases/tag/continuo)
+(gerada automaticamente a cada atualização do `main`) e instale:
+
+```sh
+sudo apt install ./openhantek-dso2250_*_amd64.deb
+```
+
+O apt instala o Qt 6 e as demais bibliotecas. **OpenHantek**, **PSG9080** e **OpenHantek Bode** aparecem no
+menu de aplicativos, e a regra do udev já dá acesso ao osciloscópio sem sudo. Para o gerador (porta serial),
+o usuário precisa estar no grupo `dialout`: `sudo usermod -aG dialout $USER` e entrar de novo na sessão.
+Para atualizar, instale o `.deb` novo do mesmo jeito; para remover: `sudo apt remove openhantek-dso2250`.
+
+## Compilar (Pop!_OS / Ubuntu / Debian)
 
 ```sh
 sudo apt install g++ cmake qt6-base-dev qt6-tools-dev qt6-tools-dev-tools qt6-l10n-tools \
@@ -79,6 +93,8 @@ programa na primeira conexão (o aparelho muda de `04b4:2250` para `04b5:2250`).
 
 O projeto usa **Qt 6** (6.2 ou mais novo). A última versão em Qt 5 está na tag `v1.0-qt5`; para
 compilar com Qt 5.15 a partir deste código, use `cmake -DOPENHANTEK_QT5=ON ..`
+
+Para gerar o pacote a partir da compilação: `cpack -G DEB` dentro de `build` (o `.deb` fica em `build/packages`).
 
 > **Segurança:** o DSO-2250 **não é isolado** — o terra das ponteiras é o terra do computador. Não meça a rede
 > elétrica diretamente; use ponteira diferencial, transformador isolador ou garra de corrente.

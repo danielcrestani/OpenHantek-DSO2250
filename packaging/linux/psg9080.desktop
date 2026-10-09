@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=PSG9080
+GenericName=Gerador de funções
+GenericName[en]=Function generator
+Comment=Controle do gerador de funções Joy-IT / JunTek PSG9080
+Comment[en]=Control of the Joy-IT / JunTek PSG9080 function generator
+Exec=PSG9080
+Icon=psg9080
+Terminal=false
+Categories=Development;Electronics;Engineering;Science;
+Keywords=generator;gerador;psg9080;joy-it;juntek;dds;
+StartupWMClass=PSG9080

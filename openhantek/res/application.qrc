@@ -1,6 +1,6 @@
 <RCC>
     <qresource prefix="/">
-        <file alias="openhantek.png">images/openhantek.png</file>
+        <file alias="openhantek.png">icons/openhantek.png</file>
         <file alias="switch.png">images/switch.png</file>
         <file>images/fontawesome-4.7.0.ttf</file>
         <file>images/openhantek.svg</file>

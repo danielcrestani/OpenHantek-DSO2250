@@ -14,13 +14,15 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # the package version counts the commits
 
       - name: Dependências
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends g++ cmake qt6-base-dev qt6-tools-dev \
             qt6-tools-dev-tools qt6-l10n-tools libqt6opengl6-dev libqt6serialport6-dev libfftw3-dev \
-            binutils-dev libusb-1.0-0-dev mesa-common-dev libgl1-mesa-dev libgles2-mesa-dev libxkbcommon-dev
+            binutils-dev libusb-1.0-0-dev desktop-file-utils mesa-common-dev libgl1-mesa-dev libgles2-mesa-dev libxkbcommon-dev
 
       - name: Configurar
         run: cmake -S . -B build -DOPENHANTEK_TESTS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
@@ -54,6 +56,47 @@ jobs:
           cd build/openhantek && ctest --output-on-failure | tee ctest.log
           echo "::notice title=Testes::$(grep -E 'tests passed|testes' ctest.log | tail -1)"
           for t in psg9080protocol bodeanalysis psg9080presets; do echo "::notice title=$t::$(./test_$t | tr '\n' ' ')"; done
+
+      - name: Pacote .deb
+        run: |
+          set -o pipefail
+          cd build
+          cpack -G DEB 2>&1 | tail -20
+          deb=$(ls "$PWD"/packages/*.deb)
+          dpkg-deb -I "$deb"
+          dpkg-deb -c "$deb"
+          # the package must install on a clean Ubuntu 22.04 (same base as Pop!_OS) and find all its libraries
+          sudo apt-get install -y "$deb"
+          for b in OpenHantek PSG9080 OpenHantekBode; do
+            if ldd "/usr/bin/$b" | grep "not found"; then echo "::error title=Pacote::$b sem bibliotecas"; exit 1; fi
+          done
+          desktop-file-validate /usr/share/applications/{openhantek,psg9080,openhantek-bode}.desktop 2>&1 | head -20 || true
+          echo "::notice title=Pacote::$(basename "$deb") ($(du -h "$deb" | cut -f1)) depende de: $(dpkg-deb -f "$deb" Depends)"
+          echo "DEB=$deb" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pacote-deb
+          path: build/packages/*.deb
+
+      - name: Publicar na página de versões (main)
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # one rolling pre-release "continuo", always with the package of the newest main
+          git tag -f continuo && git push -f origin refs/tags/continuo
+          notes="Pacote para Pop!_OS / Ubuntu 22.04 ou mais novo (amd64), gerado do commit ${GITHUB_SHA::7}.
+
+          Instalar (o apt baixa o Qt 6 sozinho):
+
+              sudo apt install ./$(basename "$DEB")
+
+          Depois de instalar, OpenHantek, PSG9080 e OpenHantek Bode aparecem no menu de aplicativos. A regra do udev já dá acesso ao osciloscópio sem sudo; para o gerador, o usuário precisa estar no grupo dialout (sudo usermod -aG dialout \$USER e entrar de novo na sessão)."
+          gh release view continuo > /dev/null 2>&1 || gh release create continuo --prerelease --title "Versão contínua" --notes "$notes"
+          gh release edit continuo --prerelease --title "Versão contínua (${GITHUB_SHA::7})" --notes "$notes"
+          for a in $(gh release view continuo --json assets --jq '.assets[].name'); do gh release delete-asset continuo "$a" -y; done
+          gh release upload continuo "$DEB"
 
       - name: Capturas das janelas
         if: always()

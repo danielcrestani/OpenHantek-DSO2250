@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=OpenHantek Bode
+GenericName=Analisador de resposta em frequência
+GenericName[en]=Frequency response analyzer
+Comment=Diagrama de Bode com o gerador PSG9080 e o osciloscópio Hantek DSO-2250
+Comment[en]=Bode plot with the PSG9080 generator and the Hantek DSO-2250 oscilloscope
+Exec=OpenHantekBode
+Icon=openhantek-bode
+Terminal=false
+Categories=Development;Electronics;Engineering;Science;
+Keywords=bode;frequency response;resposta em frequência;filter;filtro;
+StartupWMClass=OpenHantekBode

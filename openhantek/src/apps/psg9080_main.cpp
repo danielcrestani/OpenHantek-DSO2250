@@ -2,6 +2,7 @@
 // PSG9080: control of the Joy-IT / JunTek PSG9080 function generator.
 
 #include <QApplication>
+#include <QIcon>
 #include <QLibraryInfo>
 #include <QLocale>
 #include <QTranslator>
@@ -14,6 +15,8 @@ int main(int argc, char *argv[]) {
     QCoreApplication::setApplicationName("PSG9080");
     QCoreApplication::setApplicationVersion(VERSION);
     QApplication app(argc, argv);
+    QGuiApplication::setDesktopFileName("psg9080"); // taskbar icon from psg9080.desktop
+    app.setWindowIcon(QIcon(":/icons/psg9080.png"));
     darkstyle::applyApplicationLook(app);
 
     QTranslator qtTranslator; // Portuguese for the Qt standard dialogs

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=OpenHantek
+GenericName=Osciloscópio
+GenericName[en]=Oscilloscope
+Comment=Osciloscópio e FFT para o Hantek DSO-2250 e outros modelos USB
+Comment[en]=Oscilloscope and FFT for the Hantek DSO-2250 and other USB models
+Exec=OpenHantek
+Icon=openhantek
+Terminal=false
+Categories=Development;Electronics;Engineering;Science;
+Keywords=oscilloscope;osciloscópio;hantek;dso;fft;
+StartupWMClass=OpenHantek

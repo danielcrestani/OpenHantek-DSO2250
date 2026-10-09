@@ -106,6 +106,7 @@ int main(int argc, char *argv[]) {
     GlScope::fixOpenGLversion(useGles ? QSurfaceFormat::OpenGLES : QSurfaceFormat::OpenGL);
 
     QApplication openHantekApplication(argc, argv);
+    QGuiApplication::setDesktopFileName("openhantek"); // taskbar icon from openhantek.desktop
 
     //////// Load translations ////////
     QTranslator qtTranslator;

@@ -1,0 +1,8 @@
+#!/bin/sh
+# Apply the udev rule now, so the oscilloscope works without logging out (access for the logged-in user, no sudo)
+set -e
+if [ "$1" = "configure" ] && command -v udevadm >/dev/null 2>&1; then
+    udevadm control --reload-rules || true
+    udevadm trigger --subsystem-match=usb --action=add || true
+fi
+exit 0
