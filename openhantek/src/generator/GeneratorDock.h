@@ -54,7 +54,7 @@ class GeneratorDock : public QDockWidget {
     void toggleConnection();
     void updateConnectionUi();
     void readChannel(int channel);
-    void show(int channel, const Psg9080::ChannelState &s);
+    void showChannel(int channel, const Psg9080::ChannelState &s);
     void showOutputs(bool ch1, bool ch2);
     /// Run a write; on failure show the message and read the device again.
     void apply(int channel, bool ok);

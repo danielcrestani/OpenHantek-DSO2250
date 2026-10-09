@@ -10,7 +10,7 @@ jobs:
     # Same base as Pop!_OS 22.04: Qt 6.2, GCC 11, libusb 1.0.25
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Dependências
         run: |
@@ -23,7 +23,9 @@ jobs:
         run: cmake -S . -B build -DOPENHANTEK_TESTS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
 
       - name: Compilar
-        run: cmake --build build -j"$(nproc)" 2>&1 | tee build.log
+        run: |
+          set -o pipefail
+          cmake --build build -j"$(nproc)" -- -k 2>&1 | tee build.log
 
       - name: Avisos do compilador
         if: always()
@@ -40,6 +42,7 @@ jobs:
       - name: Testes
         run: |
           cmake --build build --target openhantek_tests -j"$(nproc)"
+          set -o pipefail
           cd build/openhantek && ctest --output-on-failure | tee ctest.log
           echo "::notice title=Testes::$(grep -E 'tests passed|testes' ctest.log | tail -1)"
           for t in psg9080protocol bodeanalysis; do echo "::notice title=$t::$(./test_$t | tr '\n' ' ')"; done

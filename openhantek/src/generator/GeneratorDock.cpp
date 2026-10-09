@@ -282,12 +282,12 @@ void GeneratorDock::readChannel(int channel) {
     if (!gen->isOpen()) return;
     Psg9080::ChannelState s;
     if (gen->readChannel(channel, s))
-        show(channel, s);
+        showChannel(channel, s);
     else
         message(gen->lastError(), true);
 }
 
-void GeneratorDock::show(int channel, const Psg9080::ChannelState &s) {
+void GeneratorDock::showChannel(int channel, const Psg9080::ChannelState &s) {
     ChannelUi &c = ui[channel - 1];
     c.frequencyHz = s.frequency;
     {
