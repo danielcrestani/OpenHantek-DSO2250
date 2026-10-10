@@ -14,6 +14,7 @@ class QComboBox;
 class QLabel;
 class QLineEdit;
 class QPushButton;
+class QTabWidget;
 
 /// \brief Asks for a preset name and what to save: both channels, CH1 or CH2.
 class PresetDialog : public QDialog {
@@ -33,12 +34,14 @@ class PresetDialog : public QDialog {
     QStringList existingNames;
 };
 
-/// \brief Main window of the PSG9080 program: generator panel and presets.
+/// \brief Main window of the PSG9080 program: connection on top, tabs (Básico with presets, Modulação, Varredura,
+/// Frequencímetro, Ondas arbitrárias, Sequências, Sistema) and a status line.
 class Psg9080Window : public QMainWindow {
     Q_OBJECT
 
   public:
     explicit Psg9080Window(QWidget *parent = nullptr);
+    QTabWidget *tabWidget() const { return tabs; }
 
   protected:
     void closeEvent(QCloseEvent *event) override;
@@ -54,6 +57,7 @@ class Psg9080Window : public QMainWindow {
 
     Psg9080 *gen;
     GeneratorPanel *panel;
+    QTabWidget *tabs;
     Psg9080PresetStore store;
     QComboBox *presetBox;
     QLabel *targetLabel;

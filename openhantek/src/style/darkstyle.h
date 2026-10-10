@@ -96,6 +96,12 @@ inline QString panelSheet() {
            "  text-align: center; min-height: 18px; }"
            "QProgressBar::chunk { background: #2f6fbf; border-radius: 3px; }"
            "QScrollArea { background: transparent; border: none; }"
+           "QTabWidget::pane { border: 1px solid #3a404a; border-radius: 5px; top: -1px; }"
+           "QTabBar::tab { background: #2b3038; color: #c8ccd4; border: 1px solid #3a404a; border-bottom: none;"
+           "  border-top-left-radius: 5px; border-top-right-radius: 5px; padding: 6px 14px; margin-right: 2px; }"
+           "QTabBar::tab:selected { background: #23272e; color: #ffffff; border-color: #555d6a; }"
+           "QTabBar::tab:hover:!selected { background: #343a44; }"
+           "QTabBar::tab:disabled { color: #6c737d; }"
            "QSplitter::handle { background: #1b1e24; width: 3px; }";
 }
 

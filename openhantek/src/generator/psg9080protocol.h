@@ -44,6 +44,7 @@ enum Register : int {
     REG_BRIGHTNESS = 28,      ///< %
     REG_LANGUAGE = 29,        ///< 0 English, 1 Chinese
     REG_WAVE_LOADING = 32,    ///< 0 automatic, 1 fast
+    REG_FREQUENCY_TRIM = 33,  ///< frequency fine tuning for synchronization, 0..99
     REG_MODULATION = 40,      ///< pair: Modulation
     REG_MOD_WAVEFORM = 41,    ///< pair: 0 sine, 1 square, 2 triangle, 3 rising saw, 4 falling saw, 5..9 arbitrary 1..5
     REG_MOD_SOURCE = 42,      ///< pair: 0 internal, 1 external

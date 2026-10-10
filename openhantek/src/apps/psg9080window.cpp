@@ -18,12 +18,19 @@
 #include <QSettings>
 #include <QSignalBlocker>
 #include <QStatusBar>
+#include <QTabWidget>
 #include <QVBoxLayout>
 
 #include <algorithm>
 
 #include "generator/GeneratorPanel.h"
+#include "generator/arbitrarytab.h"
+#include "generator/countertab.h"
+#include "generator/modulationtab.h"
 #include "generator/psg9080.h"
+#include "generator/sequencetab.h"
+#include "generator/sweeptab.h"
+#include "generator/systemtab.h"
 #include "style/darkstyle.h"
 
 // ------------------------------------------------------------------------------------------------ PresetDialog
@@ -141,12 +148,35 @@ Psg9080Window::Psg9080Window(QWidget *parent) : QMainWindow(parent), gen(new Psg
     presets->addWidget(saveButton);
     presets->addWidget(deleteButton);
 
+    // Básico: the two channels and the presets
+    QWidget *basic = new QWidget;
+    QVBoxLayout *basicLayout = new QVBoxLayout(basic);
+    basicLayout->setContentsMargins(2, 2, 2, 2);
+    basicLayout->addWidget(panel, 1);
+    basicLayout->addWidget(presetGroup);
+
+    tabs = new QTabWidget;
+    tabs->setDocumentMode(false);
+    tabs->addTab(basic, tr("Básico"));
+    psgui::GeneratorTab *pages[] = {new ModulationTab(gen), new SweepTab(gen), new CounterTab(gen),
+                                    new ArbitraryTab(gen), new SequenceTab(gen), new SystemTab(gen)};
+    const char *titles[] = {"Modulação", "Varredura", "Frequencímetro", "Ondas arbitrárias", "Sequências", "Sistema"};
+    for (int i = 0; i < 6; ++i) {
+        tabs->addTab(pages[i], tr(titles[i]));
+        connect(pages[i], &psgui::GeneratorTab::statusMessage, this, &Psg9080Window::status);
+    }
+
     QWidget *root = new QWidget;
     root->setStyleSheet(darkstyle::panelSheet());
     QVBoxLayout *layout = new QVBoxLayout(root);
-    layout->setContentsMargins(8, 6, 8, 8);
-    layout->addWidget(panel, 1);
-    layout->addWidget(presetGroup);
+    layout->setContentsMargins(8, 8, 8, 6);
+    layout->setSpacing(6);
+    layout->addWidget(panel->connectionBar()); // reparented: always visible above the tabs
+    layout->addWidget(tabs, 1);
+    QLabel *statusLine = panel->statusLine();
+    statusLine->setMinimumHeight(statusLine->fontMetrics().height() * 2 + 4);
+    statusLine->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+    layout->addWidget(statusLine);
     setCentralWidget(root);
 
     connect(presetBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int) { presetSelected(); });
@@ -155,16 +185,19 @@ Psg9080Window::Psg9080Window(QWidget *parent) : QMainWindow(parent), gen(new Psg
     connect(deleteButton, &QPushButton::clicked, this, &Psg9080Window::deletePreset);
     connect(gen, &Psg9080::connectionChanged, this, [this](bool) { updatePresetButtons(); });
 
-    resize(820, 440); // first run; a saved size replaces it below
+    resize(980, 620); // first run; a saved size replaces it below
+    setMinimumSize(860, 540);
     QSettings s;
-    restoreGeometry(s.value("window/geometry").toByteArray());
+    restoreGeometry(s.value("window/geometry2").toByteArray()); // new key: the window grew with the tabs
+    tabs->setCurrentIndex(s.value("window/tab", 0).toInt());
     reloadPresets(s.value("window/preset").toString());
     updatePresetButtons();
 }
 
 void Psg9080Window::closeEvent(QCloseEvent *event) {
     QSettings s;
-    s.setValue("window/geometry", saveGeometry());
+    s.setValue("window/geometry2", saveGeometry());
+    s.setValue("window/tab", tabs->currentIndex());
     s.setValue("window/preset", presetBox->currentData().toString());
     QMainWindow::closeEvent(event);
 }

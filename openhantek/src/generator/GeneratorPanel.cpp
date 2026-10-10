@@ -81,11 +81,14 @@ GeneratorPanel::GeneratorPanel(Psg9080 *generator, Qt::Orientation channels, QWi
     refreshButton->setToolTip(tr("Procurar portas seriais"));
     refreshButton->setFixedWidth(32);
     connectButton = new QPushButton(tr("Conectar"));
-    QHBoxLayout *portRow = new QHBoxLayout;
+    connectionRow = new QWidget;
+    QHBoxLayout *portRow = new QHBoxLayout(connectionRow);
+    portRow->setContentsMargins(0, 0, 0, 0);
+    portRow->addWidget(new QLabel(tr("Porta")));
     portRow->addWidget(portBox, 1);
     portRow->addWidget(refreshButton);
     portRow->addWidget(connectButton);
-    layout->addLayout(portRow);
+    layout->addWidget(connectionRow);
     connect(refreshButton, &QPushButton::clicked, this, &GeneratorPanel::refreshPorts);
     connect(connectButton, &QPushButton::clicked, this, &GeneratorPanel::toggleConnection);
 

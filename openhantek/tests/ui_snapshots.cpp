@@ -10,6 +10,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QTabWidget>
 
 #include <algorithm>
 #include <QGroupBox>
@@ -46,7 +47,7 @@ int main(int argc, char *argv[]) {
     QDir().mkpath(dir);
 
     Psg9080Window gen;
-    save(&gen, dir + "/psg9080.jpg", QSize(900, 470));
+    save(&gen, dir + "/psg9080.jpg", QSize(980, 620));
 
     // Same window as when connected: controls enabled, example values, CH1 output on
     for (QWidget *w : gen.findChildren<QWidget *>()) w->setEnabled(true);
@@ -70,7 +71,18 @@ int main(int argc, char *argv[]) {
                                                                     [](QPushButton *x) { return x->isCheckable(); }));
             if (b->isChecked()) b->setText("SAÍDA LIGADA");
         }
-    save(&gen, dir + "/psg9080-conectado.jpg", QSize(900, 470));
+    save(&gen, dir + "/psg9080-conectado.jpg", QSize(980, 620));
+
+    // every other tab, enabled as when connected
+    const char *tabNames[] = {"", "modulacao", "varredura", "frequencimetro", "ondas", "sequencias", "sistema"};
+    for (int t = 1; t < gen.tabWidget()->count() && t < 7; ++t) {
+        gen.tabWidget()->setCurrentIndex(t);
+        QApplication::processEvents();
+        for (QWidget *w : gen.tabWidget()->widget(t)->findChildren<QWidget *>()) w->setEnabled(true);
+        gen.tabWidget()->widget(t)->setEnabled(true);
+        save(&gen, dir + "/psg9080-" + tabNames[t] + ".jpg", QSize(980, 620));
+    }
+    gen.tabWidget()->setCurrentIndex(0);
 
     // Bode plot: RC low pass with fc = 1 kHz, 10 Hz .. 100 kHz
     QWidget bode;

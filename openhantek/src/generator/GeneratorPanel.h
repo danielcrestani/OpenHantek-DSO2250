@@ -32,6 +32,10 @@ class GeneratorPanel : public QWidget {
     void refresh();
     /// Show a message in the panel status line.
     void message(const QString &text, bool error = false);
+    /// Port selector and Connect button; a window may put it elsewhere (it is reparented out of the panel).
+    QWidget *connectionBar() const { return connectionRow; }
+    /// Status line; a window may put it elsewhere.
+    QLabel *statusLine() const { return status; }
 
     /// Parse a number typed by the user, accepting a decimal comma ("1,5") or point.
     static bool parseNumber(const QString &text, double &value);
@@ -68,6 +72,7 @@ class GeneratorPanel : public QWidget {
 
     Psg9080 *gen;
     std::vector<ChannelUi> ui; ///< index 0 = CH1
+    QWidget *connectionRow = nullptr;
     QComboBox *portBox = nullptr;
     QPushButton *refreshButton = nullptr;
     QPushButton *connectButton = nullptr;
