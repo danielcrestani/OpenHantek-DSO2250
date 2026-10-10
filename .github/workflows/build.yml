@@ -23,6 +23,8 @@ jobs:
           sudo apt-get install -y --no-install-recommends g++ cmake qt6-base-dev qt6-tools-dev \
             qt6-tools-dev-tools qt6-l10n-tools libqt6opengl6-dev libqt6serialport6-dev libfftw3-dev \
             binutils-dev libusb-1.0-0-dev desktop-file-utils mesa-common-dev libgl1-mesa-dev libgles2-mesa-dev libxkbcommon-dev
+          # the tests also run with a decimal-comma locale (Brazilian Portuguese)
+          sudo locale-gen pt_BR.UTF-8 > /dev/null
 
       - name: Configurar
         run: cmake -S . -B build -DOPENHANTEK_TESTS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo

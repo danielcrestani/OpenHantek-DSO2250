@@ -41,6 +41,7 @@ class Psg9080Window : public QMainWindow {
 
   public:
     explicit Psg9080Window(QWidget *parent = nullptr);
+    ~Psg9080Window() override;
     QTabWidget *tabWidget() const { return tabs; }
 
   protected:

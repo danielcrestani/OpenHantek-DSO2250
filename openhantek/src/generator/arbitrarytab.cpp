@@ -22,6 +22,7 @@
 #include <QSettings>
 #include <QSignalBlocker>
 #include <QSpinBox>
+#include <QStandardPaths>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -232,7 +233,8 @@ void ArbitraryTab::generate() {
 void ArbitraryTab::openFile() {
     QSettings s;
     const QString name = QFileDialog::getOpenFileName(
-        this, tr("Abrir forma de onda"), s.value("Arbitrary/dir").toString(),
+        this, tr("Abrir forma de onda"),
+        s.value("Arbitrary/dir", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
         tr("Formas de onda (*.txt *.csv *.dat);;Todos os arquivos (*)"));
     if (name.isEmpty()) return;
     s.setValue("Arbitrary/dir", QFileInfo(name).absolutePath());
@@ -312,7 +314,8 @@ void ArbitraryTab::saveFile() {
     QSettings s;
     const QString name = QFileDialog::getSaveFileName(
         this, tr("Salvar forma de onda"),
-        s.value("Arbitrary/dir").toString() + QString("/onda%1.txt").arg(slotBox->value(), 2, 10, QChar('0')),
+        s.value("Arbitrary/dir", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString() +
+            QString("/onda%1.txt").arg(slotBox->value(), 2, 10, QChar('0')),
         tr("Formato do gerador, 8192 linhas (*.txt)"));
     if (name.isEmpty()) return;
     s.setValue("Arbitrary/dir", QFileInfo(name).absolutePath());

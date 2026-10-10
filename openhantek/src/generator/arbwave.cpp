@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -18,6 +19,15 @@ constexpr double kTwoPi = 2.0 * kPi;
 double phaseOf(double x) { // 0..1 within a 2*pi period
     const double p = x / kTwoPi;
     return p - std::floor(p);
+}
+
+/// Number at the start of `s` with a decimal point, whatever the C locale is (strtod would follow LC_NUMERIC,
+/// which QApplication sets from the system: pt_BR uses a comma). Returns the characters used, 0 if none.
+size_t readNumber(const char *s, size_t len, double &value) {
+    size_t skip = (len > 0 && s[0] == '+') ? 1 : 0;
+    const auto r = std::from_chars(s + skip, s + len, value);
+    if (r.ec != std::errc()) return 0;
+    return (size_t)(r.ptr - s);
 }
 
 double noiseAt(int n) { // deterministic: the same formula always gives the same waveform
@@ -240,10 +250,12 @@ class Parser {
         }
         const char c = text[pos];
         if (std::isdigit((unsigned char)c) || c == '.') {
-            const char *start = text.c_str() + pos;
-            char *end = nullptr;
-            n->value = std::strtod(start, &end);
-            pos += end - start;
+            const size_t used = readNumber(text.c_str() + pos, text.size() - pos, n->value);
+            if (used == 0) {
+                fail("número inválido");
+                return n;
+            }
+            pos += used;
             if (pos < text.size() && text[pos] == ',' && pos + 1 < text.size() &&
                 std::isdigit((unsigned char)text[pos + 1]) && depth == 0) {
                 fail("use ponto como separador decimal (ex.: 0.5)");
@@ -329,9 +341,18 @@ bool toNumber(std::string s, bool decimalComma, double &v) {
     s = trim(s);
     if (s.empty()) return false;
     if (decimalComma) std::replace(s.begin(), s.end(), ',', '.');
-    char *end = nullptr;
-    v = std::strtod(s.c_str(), &end);
-    return end && *end == '\0' && std::isfinite(v);
+    return readNumber(s.c_str(), s.size(), v) == s.size() && std::isfinite(v);
+}
+
+/// "12", "-0,125": a number written with a decimal comma (or an integer)
+bool commaNumber(const std::string &t) {
+    size_t i = (!t.empty() && (t[0] == '-' || t[0] == '+')) ? 1 : 0, digits = 0, commas = 0;
+    for (; i < t.size(); ++i) {
+        if (std::isdigit((unsigned char)t[i])) ++digits;
+        else if (t[i] == ',' && ++commas == 1 && digits > 0) continue;
+        else return false;
+    }
+    return digits > 0 && t.back() != ',';
 }
 
 std::vector<std::string> split(const std::string &line, char sep) {
@@ -411,8 +432,8 @@ std::vector<double> resample(const std::vector<double> &in, int count) {
         const size_t i = (size_t)pos;
         const double f = pos - i;
         const double a = in[i % m], b = in[(i + 1) % m];
-        // downsampling keeps the linear interpolation: the device output filter smooths the steps anyway
-        out[j] = (i + 1 >= m) ? a : a + (b - a) * f;
+        // one period: the last segment goes back to the first point
+        out[j] = a + (b - a) * f;
     }
     return out;
 }
@@ -454,9 +475,9 @@ bool parseTable(const std::string &text, Table &table, std::string &error) {
             start = end + 1;
         }
     }
-    // separator from the data lines
+    // separator from the data lines (lines with letters are headers)
     char sep = ' ';
-    bool any = false;
+    bool any = false, dots = false, commas = false, onlyCommaNumbers = true;
     for (const std::string &l : lines) {
         const std::string t = trim(l);
         if (t.empty() || t[0] == '#') continue;
@@ -466,12 +487,19 @@ bool parseTable(const std::string &text, Table &table, std::string &error) {
             break;
         }
         if (t.find('\t') != std::string::npos) sep = '\t';
-        else if (sep == ' ' && t.find(',') != std::string::npos) sep = ',';
+        dots = dots || t.find('.') != std::string::npos;
+        commas = commas || t.find(',') != std::string::npos;
+        const bool header = std::any_of(t.begin(), t.end(), [](char c) { return std::isalpha((unsigned char)c); });
+        if (!header)
+            for (const std::string &token : split(t, sep == '\t' ? '\t' : ' '))
+                onlyCommaNumbers = onlyCommaNumbers && commaNumber(trim(token));
     }
     if (!any) {
         error = "o arquivo não tem números";
         return false;
     }
+    // "0,125" one per line, or "1,5 2,5": the comma is the decimal separator, not a column separator
+    if (sep == ' ' && commas && (dots || !onlyCommaNumbers)) sep = ',';
     const bool decimalComma = sep != ',';
 
     Table out;

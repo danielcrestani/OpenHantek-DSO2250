@@ -190,7 +190,7 @@ void SequenceTab::addRow(const QJsonObject &step) {
     table->setCellWidget(r, OUTPUT, out);
     auto text = [&](int column, const char *key, const QString &unit) {
         QTableWidgetItem *item = new QTableWidgetItem(
-            step.contains(key) ? (unit == "Hz" ? psgui::siText(step.value(key).toDouble(), "Hz")
+            step.contains(key) ? (unit == "Hz" ? psgui::siText(step.value(key).toDouble(), "Hz", 12)
                                                : number(step.value(key).toDouble()))
                                : QString());
         item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
@@ -308,6 +308,10 @@ void SequenceTab::start() {
         const QTableWidgetItem *d = table->item(r, DURATION);
         if (!d || !parseValue(d->text(), "s", v) || v < 0) {
             say(tr("Passo %1: duração inválida (em segundos, ex.: 1,5).").arg(r + 1), true);
+            return;
+        }
+        if (v > 2e6) { // the timer counts milliseconds in an int (about 24 days)
+            say(tr("Passo %1: duração máxima de 2 000 000 s (23 dias).").arg(r + 1), true);
             return;
         }
         for (int c : {FREQUENCY, AMPLITUDE, OFFSET}) {

@@ -110,6 +110,9 @@ class Psg9080 : public QObject {
                        const std::function<bool(qint64)> &onBytes = {});
     /// Refuse commands from elsewhere (timers, other tabs) while a waveform transfer processes events.
     bool refuseWhileTransferring();
+    /// After a cancelled or failed waveform transfer: end the line we were sending and drop what the device still
+    /// sends, so the next command starts clean.
+    void resync(bool endLine);
     bool writeRegister(int code, const std::vector<std::string> &fields);
     bool readRegister(int code, std::vector<std::string> &fields);
     bool checkChannel(int channel);

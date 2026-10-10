@@ -339,6 +339,20 @@ bool Psg9080::readAll(std::map<int, std::vector<std::string>> &registers, int la
     return true;
 }
 
+void Psg9080::resync(bool endLine) {
+    if (!port->isOpen()) return;
+    if (endLine) {
+        port->write("\r\n");
+        port->waitForBytesWritten(1000);
+    }
+    // a cancelled read keeps arriving for up to ~4 s: wait until the line is quiet for 300 ms
+    QElapsedTimer total;
+    total.start();
+    while (total.elapsed() < 8000 && port->waitForReadyRead(300)) port->readAll();
+    port->clear(QSerialPort::Input);
+    port->readAll();
+}
+
 bool Psg9080::writeArbitrary(int slot, const std::vector<int> &codes, const Progress &progress) {
     if (slot < 1 || slot > 99) return fail(tr("Posição de onda arbitrária inválida: %1 (1 a 99).").arg(slot));
     if (codes.size() != (size_t)kArbitraryPoints)
@@ -357,10 +371,15 @@ bool Psg9080::writeArbitrary(int slot, const std::vector<int> &codes, const Prog
     const int chunk = 1024; // ~90 ms each at 115200 baud: progress and cancel stay responsive
     for (int sent = 0; sent < bytes.size(); sent += chunk) {
         const QByteArray part = bytes.mid(sent, chunk);
-        if (port->write(part) != part.size() || !port->waitForBytesWritten(3000))
-            return fail(tr("Falha ao enviar a onda ao gerador: %1").arg(port->errorString()));
-        if (progress && !progress((int)(100.0 * (sent + part.size()) / bytes.size())))
+        if (port->write(part) != part.size() || !port->waitForBytesWritten(3000)) {
+            const QString reason = port->errorString();
+            resync(true);
+            return fail(tr("Falha ao enviar a onda ao gerador: %1").arg(reason));
+        }
+        if (progress && !progress((int)(100.0 * (sent + part.size()) / bytes.size()))) {
+            resync(true);
             return fail(tr("Envio cancelado; a onda %1 do gerador pode ter ficado incompleta.").arg(slot));
+        }
     }
     // answer ":ok" once the device has stored the waveform
     QByteArray buffer;
@@ -372,7 +391,10 @@ bool Psg9080::writeArbitrary(int slot, const std::vector<int> &codes, const Prog
                 close();
                 return fail(tr("O gerador foi desconectado."));
             }
-            if (timer.elapsed() > 8000) return fail(tr("O gerador não confirmou a onda."));
+            if (timer.elapsed() > 8000) {
+                resync(false);
+                return fail(tr("O gerador não confirmou a onda."));
+            }
             continue;
         }
         buffer += port->readAll();
@@ -395,7 +417,11 @@ bool Psg9080::readArbitrary(int slot, std::vector<int> &codes, const Progress &p
     } guard(transferring);
     const qint64 expected = (qint64)kArbitraryPoints * 6; // ~6 characters per point
     auto onBytes = [&](qint64 n) { return !progress || progress((int)std::min<qint64>(99, 100 * n / expected)); };
-    if (!exchangeLines(arbitraryReadCommand(slot), 1, 15000, lines, onBytes)) return false;
+    if (!exchangeLines(arbitraryReadCommand(slot), 1, 15000, lines, onBytes)) {
+        const QString reason = error;
+        resync(false);
+        return fail(reason);
+    }
     if (lines.empty() || !parseArbitraryAnswer(lines.front(), slot, codes))
         return fail(tr("Resposta inesperada ao ler a onda %1.").arg(slot));
     if (progress) progress(100);

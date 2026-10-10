@@ -218,3 +218,8 @@ void SweepTab::refresh() {
 }
 
 SweepTab::~SweepTab() { delete form; }
+
+void SweepTab::connectionChanged(bool open) {
+    if (!open && running) showRunning(false);
+    GeneratorTab::connectionChanged(open);
+}

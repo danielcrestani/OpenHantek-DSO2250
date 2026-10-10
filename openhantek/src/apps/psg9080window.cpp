@@ -171,7 +171,10 @@ Psg9080Window::Psg9080Window(QWidget *parent) : QMainWindow(parent), gen(new Psg
     QVBoxLayout *layout = new QVBoxLayout(root);
     layout->setContentsMargins(8, 8, 8, 6);
     layout->setSpacing(6);
-    layout->addWidget(panel->connectionBar()); // reparented: always visible above the tabs
+    // the connection and the messages stay visible above and below the tabs
+    panel->layout()->removeWidget(panel->connectionBar());
+    panel->layout()->removeWidget(panel->statusLine());
+    layout->addWidget(panel->connectionBar());
     layout->addWidget(tabs, 1);
     QLabel *statusLine = panel->statusLine();
     statusLine->setMinimumHeight(statusLine->fontMetrics().height() * 2 + 4);
@@ -192,6 +195,12 @@ Psg9080Window::Psg9080Window(QWidget *parent) : QMainWindow(parent), gen(new Psg
     tabs->setCurrentIndex(s.value("window/tab", 0).toInt());
     reloadPresets(s.value("window/preset").toString());
     updatePresetButtons();
+}
+
+Psg9080Window::~Psg9080Window() {
+    // close the port now, without signals: the generator is deleted after this window's members and tabs
+    gen->blockSignals(true);
+    gen->close();
 }
 
 void Psg9080Window::closeEvent(QCloseEvent *event) {

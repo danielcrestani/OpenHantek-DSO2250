@@ -25,6 +25,9 @@ class SweepTab : public psgui::GeneratorTab {
     ~SweepTab() override;
     void refresh() override;
 
+  protected:
+    void connectionChanged(bool open) override;
+
   private:
     void updateRows();
     void start();

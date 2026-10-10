@@ -71,6 +71,7 @@ static void codes() {
     CHECK_EQ(r.size(), (size_t)8);
     CHECK_NEAR(r[1], 0.5, 1e-12);
     CHECK_NEAR(r[6], 3, 1e-12);
+    CHECK_NEAR(r[7], 1.5, 1e-12); // last segment wraps to the first point
     CHECK_EQ(resample(std::vector<double>(100, 1.0)).size(), (size_t)kPoints);
 }
 
@@ -101,6 +102,17 @@ static void files() {
     CHECK_NEAR(t.columns[1][1], 2.5, 1e-12);
     CHECK(!parseTable("# nada\n\n", t, err));
 
+    // one column with decimal commas, and space separated decimal commas
+    CHECK(parseTable("0,125\n0,5\n-0,25\n", t, err));
+    CHECK_EQ(t.columns.size(), (size_t)1);
+    CHECK_NEAR(t.columns[0][2], -0.25, 1e-12);
+    CHECK(parseTable("1,5 2,5\n3 4,25\n", t, err));
+    CHECK_EQ(t.columns.size(), (size_t)2);
+    CHECK_NEAR(t.columns[1][1], 4.25, 1e-12);
+    // integers separated by commas stay columns
+    CHECK(parseTable("1,2,3\n4,5,6\n", t, err));
+    CHECK_EQ(t.columns.size(), (size_t)3);
+
     std::vector<double> device(kPoints, 100);
     CHECK(isDeviceFormat(device));
     CHECK(!isSixteenBitFormat(device));
@@ -110,7 +122,11 @@ static void files() {
     CHECK_EQ(deviceFormatText({1, 2, 99999}), std::string("1\n2\n16383\n"));
 }
 
+#include <clocale>
+
 int main() {
+    // the GUI runs with the system locale (pt_BR: decimal comma); parsing must not depend on it
+    if (!std::setlocale(LC_NUMERIC, "pt_BR.UTF-8")) std::setlocale(LC_NUMERIC, "de_DE.UTF-8");
     formulas();
     codes();
     files();
