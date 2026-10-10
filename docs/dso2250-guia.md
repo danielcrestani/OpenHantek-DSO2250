@@ -165,7 +165,10 @@ Cria uma forma de onda de 8192 pontos (14 bits) e grava em uma das **99 posiçõ
 - **Fórmula**, com `t` de 0 a 1 no período e `x = 2πt`. Exemplos: `sin(x) + 0.3*sin(3*x)`,
   `exp(-5*t)*sin(20*x)`, `if(t < 0.5, 1, -1)`. Funções: `sin cos tan exp ln sqrt abs sign floor round`,
   `square(x) tri(x) saw(x) pulse(x, duty) sinc(x) gauss(z) noise() min max pow mod if`. Use **ponto** decimal.
-  A lista *Exemplos* tem 16 formas prontas (amortecida, sinc, chirp, AM, retificadas, ECG…).
+  A lista *Exemplos* tem formas prontas (amortecida, sinc, chirp, AM, retificadas, ECG…), inclusive **SPWM**
+  como em inversores senoidais: `if(0.9*sin(x) > tri(51*x), 1, -1)` compara a senoide com uma portadora
+  triangular de 51 ciclos por período (índice de modulação 0,9). Com o canal em 60 Hz a portadora fica em
+  3060 Hz. A modulação “Pulso (PWM)” do aparelho não faz isso: ela só define largura e período fixos.
 - **Arquivo**: uma coluna de números, ou CSV com colunas (escolha a coluna). O arquivo de registro de forma de
   onda do OpenHantek (● REG, conteúdo “forma de onda”) é reconhecido: escolha a aquisição — assim uma forma
   capturada pelo DSO-2250 pode ser reproduzida pelo gerador. Arquivos de 8192 valores inteiros (formato do

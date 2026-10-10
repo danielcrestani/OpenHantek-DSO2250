@@ -596,6 +596,11 @@ const std::vector<Example> &examples() {
         {"Trem de pulsos 10 %", "pulse(5*x, 0.1)"},
         {"Escada de 8 degraus", "floor(8*t)/7"},
         {"Carga e descarga RC", "if(t < 0.5, 1 - exp(-10*t), exp(-10*(t - 0.5)))"},
+        // sinusoidal PWM as in sine inverters: the sine compared with a triangle carrier (51 per period,
+        // modulation index 0.9); with the channel at 60 Hz the carrier is 3060 Hz
+        {"SPWM bipolar (inversor, 51 pulsos)", "if(0.9*sin(x) > tri(51*x), 1, -1)"},
+        {"SPWM unipolar 3 níveis (51 pulsos)", "(0.9*sin(x) > tri(51*x)) - (-0.9*sin(x) > tri(51*x))"},
+        {"SPWM bipolar (21 pulsos, fácil de ver)", "if(0.9*sin(x) > tri(21*x), 1, -1)"},
         {"Senoide com ruído", "sin(x) + 0.1*noise()"},
         {"Ruído", "noise()"},
         {"ECG estilizado", "gauss((t-0.2)*40)*0.15 + gauss((t-0.35)*150) - 0.2*gauss((t-0.32)*150) - "
