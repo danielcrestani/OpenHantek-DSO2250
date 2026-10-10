@@ -108,6 +108,8 @@ class Psg9080 : public QObject {
     /// Send `command` and collect `lines` answer lines (without CRLF); onBytes gets the bytes received so far.
     bool exchangeLines(const std::string &command, int lines, int timeoutMs, std::vector<std::string> &answer,
                        const std::function<bool(qint64)> &onBytes = {});
+    /// Refuse commands from elsewhere (timers, other tabs) while a waveform transfer processes events.
+    bool refuseWhileTransferring();
     bool writeRegister(int code, const std::vector<std::string> &fields);
     bool readRegister(int code, std::vector<std::string> &fields);
     bool checkChannel(int channel);
@@ -115,4 +117,5 @@ class Psg9080 : public QObject {
 
     QSerialPort *port;
     QString error;
+    bool transferring = false;
 };

@@ -5,6 +5,7 @@
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -63,6 +64,42 @@ QLabel *hint(const QString &text) {
 void setRowVisible(QFormLayout *form, QWidget *field, bool visible) {
     if (QWidget *label = form->labelForField(field)) label->setVisible(visible);
     field->setVisible(visible);
+}
+
+Form::Form(QWidget *parent) : layout(new QGridLayout(parent)) {
+    layout->setHorizontalSpacing(10);
+    layout->setVerticalSpacing(6);
+    layout->setColumnStretch(1, 1);
+}
+
+QLabel *Form::addRow(const QString &label, QWidget *field) {
+    const int row = layout->rowCount();
+    QLabel *l = label.isEmpty() ? nullptr : new QLabel(label);
+    if (l) layout->addWidget(l, row, 0, Qt::AlignLeft | Qt::AlignVCenter);
+    layout->addWidget(field, row, 1); // fields line up also when the row has no label
+    rows.append({field, l});
+    return l;
+}
+
+QLabel *Form::addRow(const QString &label, QLayout *field) {
+    QWidget *holder = new QWidget;
+    field->setContentsMargins(0, 0, 0, 0);
+    holder->setLayout(field);
+    return addRow(label, holder);
+}
+
+void Form::setRowVisible(QWidget *field, bool visible) {
+    for (const auto &r : rows)
+        if (r.first == field) {
+            if (r.second) r.second->setVisible(visible);
+            field->setVisible(visible);
+        }
+}
+
+QLabel *Form::labelFor(QWidget *field) const {
+    for (const auto &r : rows)
+        if (r.first == field) return r.second;
+    return nullptr;
 }
 
 QString siText(double value, const QString &unit, int digits) {

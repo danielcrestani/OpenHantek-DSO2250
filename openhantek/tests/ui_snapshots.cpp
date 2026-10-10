@@ -3,6 +3,7 @@
 // so the look can be checked in CI (QT_QPA_PLATFORM=offscreen).
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDir>
 #include <QFile>
@@ -40,7 +41,7 @@ static void logMessage(QtMsgType, const QMessageLogContext &, const QString &msg
 int main(int argc, char *argv[]) {
     qInstallMessageHandler(logMessage);
     QApplication app(argc, argv);
-    for (const char *f : {":/style/arrow-down.png", ":/style/arrow-up.png"})
+    for (const char *f : {":/style/arrow-down.png", ":/style/arrow-up.png", ":/style/check.png"})
         fprintf(stderr, "resource %s: %s\n", f, QFile::exists(f) ? "ok" : "MISSING");
     darkstyle::applyApplicationLook(app);
     const QString dir = argc > 1 ? argv[1] : QString(".");
@@ -79,6 +80,8 @@ int main(int argc, char *argv[]) {
         gen.tabWidget()->setCurrentIndex(t);
         QApplication::processEvents();
         for (QWidget *w : gen.tabWidget()->widget(t)->findChildren<QWidget *>()) w->setEnabled(true);
+        const auto boxes = gen.tabWidget()->widget(t)->findChildren<QCheckBox *>();
+        for (int k = 0; k < boxes.size(); k += 2) boxes[k]->setChecked(true); // show both states
         gen.tabWidget()->widget(t)->setEnabled(true);
         save(&gen, dir + "/psg9080-" + tabNames[t] + ".jpg", QSize(980, 620));
     }

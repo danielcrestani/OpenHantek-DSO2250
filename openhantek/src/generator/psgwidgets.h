@@ -10,6 +10,8 @@ class Psg9080;
 class QComboBox;
 class QDoubleSpinBox;
 class QFormLayout;
+class QGridLayout;
+class QLayout;
 class QLabel;
 class QLineEdit;
 class QSpinBox;
@@ -28,6 +30,22 @@ QComboBox *combo(const QStringList &items, const QVector<int> &codes = {});
 QLabel *hint(const QString &text);
 /// Show or hide a form row (QFormLayout::setRowVisible needs Qt 6.4; Pop!_OS 22.04 has 6.2).
 void setRowVisible(QFormLayout *form, QWidget *field, bool visible);
+
+/// \brief Label/field rows on a grid: hidden rows take no space at all (a QFormLayout of Qt 6.2 keeps their
+/// spacing, which leaves gaps when fields change with the selected mode).
+class Form {
+  public:
+    explicit Form(QWidget *parent);
+    QLabel *addRow(const QString &label, QWidget *field);
+    QLabel *addRow(const QString &label, QLayout *field);
+    void setRowVisible(QWidget *field, bool visible);
+    QLabel *labelFor(QWidget *field) const;
+    QGridLayout *grid() const { return layout; }
+
+  private:
+    QGridLayout *layout;
+    QVector<QPair<QWidget *, QLabel *>> rows;
+};
 /// "1,5 kHz" style text.
 QString siText(double value, const QString &unit, int digits = 6);
 

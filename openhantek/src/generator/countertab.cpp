@@ -29,8 +29,7 @@ CounterTab::CounterTab(Psg9080 *generator, QWidget *parent) : GeneratorTab(gener
 
     QGroupBox *setup = new QGroupBox(tr("Entrada Ext.IN"));
     darkstyle::colorSection(setup, darkstyle::violet());
-    form = new QFormLayout(setup);
-    form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    form = new psgui::Form(setup);
     form->addRow(tr("Função"), functionBox);
     form->addRow(tr("Acoplamento"), couplingBox);
     form->addRow(tr("Tempo de porta"), gateBox);
@@ -109,8 +108,8 @@ CounterTab::CounterTab(Psg9080 *generator, QWidget *parent) : GeneratorTab(gener
 bool CounterTab::isCounter() const { return functionBox->currentIndex() == 1; }
 
 void CounterTab::updateRows() {
-    psgui::setRowVisible(form, gateBox, !isCounter());
-    psgui::setRowVisible(form, rangeBox, !isCounter());
+    form->setRowVisible(gateBox, !isCounter());
+    form->setRowVisible(rangeBox, !isCounter());
     mainCaption->setText(isCounter() ? tr("Pulsos contados") : tr("Frequência"));
     details->setVisible(!isCounter());
 }
@@ -190,3 +189,5 @@ void CounterTab::connectionChanged(bool open) {
     if (!open && running) stop(false);
     GeneratorTab::connectionChanged(open);
 }
+
+CounterTab::~CounterTab() { delete form; }

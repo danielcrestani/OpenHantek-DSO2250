@@ -20,6 +20,7 @@ class ModulationTab : public psgui::GeneratorTab {
 
   public:
     explicit ModulationTab(Psg9080 *generator, QWidget *parent = nullptr);
+    ~ModulationTab() override;
     void refresh() override;
 
   private:
@@ -36,6 +37,6 @@ class ModulationTab : public psgui::GeneratorTab {
     QDoubleSpinBox *depth, *phase;
     QSpinBox *cycles;
     QPushButton *onButton, *fireButton;
-    QFormLayout *form;
+    psgui::Form *form;
     QLabel *explain;
 };

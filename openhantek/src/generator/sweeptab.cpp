@@ -49,8 +49,7 @@ SweepTab::SweepTab(Psg9080 *generator, QWidget *parent) : GeneratorTab(generator
 
     QGroupBox *box = new QGroupBox(tr("Varredura"));
     darkstyle::colorSection(box, darkstyle::blue());
-    form = new QFormLayout(box);
-    form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    form = new psgui::Form(box);
     form->addRow(tr("Modo"), modeBox);
     form->addRow(tr("Canal"), channelBox);
     form->addRow(tr("Varrer"), objectBox);
@@ -104,7 +103,7 @@ bool SweepTab::isVco() const { return modeBox->currentIndex() == 1; }
 
 void SweepTab::updateRows() {
     const int o = objectBox->currentIndex();
-    auto show = [this](QWidget *w, bool v) { psgui::setRowVisible(form, w, v); };
+    auto show = [this](QWidget *w, bool v) { form->setRowVisible(w, v); };
     show(startFreq, o == FREQUENCY);
     show(endFreq, o == FREQUENCY);
     show(startAmp, o == AMPLITUDE);
@@ -113,12 +112,12 @@ void SweepTab::updateRows() {
     show(endDuty, o == DUTY);
     show(timeBox, !isVco());
     show(directionBox, !isVco());
-    form->labelForField(startFreq)->setProperty("text", isVco() ? tr("Frequência em 0 V") : tr("Frequência inicial"));
-    form->labelForField(endFreq)->setProperty("text", isVco() ? tr("Frequência em 5 V") : tr("Frequência final"));
-    form->labelForField(startAmp)->setProperty("text", isVco() ? tr("Amplitude em 0 V") : tr("Amplitude inicial"));
-    form->labelForField(endAmp)->setProperty("text", isVco() ? tr("Amplitude em 5 V") : tr("Amplitude final"));
-    form->labelForField(startDuty)->setProperty("text", isVco() ? tr("Duty em 0 V") : tr("Duty inicial"));
-    form->labelForField(endDuty)->setProperty("text", isVco() ? tr("Duty em 5 V") : tr("Duty final"));
+    form->labelFor(startFreq)->setText(isVco() ? tr("Frequência em 0 V") : tr("Frequência inicial"));
+    form->labelFor(endFreq)->setText(isVco() ? tr("Frequência em 5 V") : tr("Frequência final"));
+    form->labelFor(startAmp)->setText(isVco() ? tr("Amplitude em 0 V") : tr("Amplitude inicial"));
+    form->labelFor(endAmp)->setText(isVco() ? tr("Amplitude em 5 V") : tr("Amplitude final"));
+    form->labelFor(startDuty)->setText(isVco() ? tr("Duty em 0 V") : tr("Duty inicial"));
+    form->labelFor(endDuty)->setText(isVco() ? tr("Duty em 5 V") : tr("Duty final"));
     explain->setText(
         (isVco() ? tr("A tensão na entrada Ext.IN (0 a 5 V) leva o parâmetro do valor em 0 V ao valor em 5 V.")
                  : tr("O próprio gerador varre o parâmetro, do valor inicial ao final, no tempo escolhido.")) +
@@ -217,3 +216,5 @@ void SweepTab::refresh() {
     }
     check(ok);
 }
+
+SweepTab::~SweepTab() { delete form; }

@@ -17,6 +17,7 @@ class CounterTab : public psgui::GeneratorTab {
 
   public:
     explicit CounterTab(Psg9080 *generator, QWidget *parent = nullptr);
+    ~CounterTab() override;
     void refresh() override;
 
   protected:
@@ -32,7 +33,7 @@ class CounterTab : public psgui::GeneratorTab {
 
     QComboBox *functionBox, *couplingBox, *rangeBox;
     QDoubleSpinBox *gateBox;
-    QFormLayout *form;
+    psgui::Form *form;
     QPushButton *runButton;
     QLabel *mainValue, *mainCaption, *period, *positive, *negative, *duty;
     QWidget *details;

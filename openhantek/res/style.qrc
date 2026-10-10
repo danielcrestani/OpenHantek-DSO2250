@@ -4,6 +4,7 @@
         <file alias="arrow-down.png">style/arrow-down@2x.png</file>
         <file alias="arrow-up-disabled.png">style/arrow-up-disabled@2x.png</file>
         <file alias="arrow-down-disabled.png">style/arrow-down-disabled@2x.png</file>
+        <file alias="check.png">style/check@2x.png</file>
     </qresource>
     <qresource prefix="/icons">
         <file alias="psg9080.png">icons/psg9080.png</file>

@@ -100,6 +100,12 @@ static void generalRegisters() {
     CHECK(decodeInterface({"0", "4", "0", "1"}, i));
     CHECK_EQ(i.page, 4);
     CHECK(!decodeInterface({"0", "4"}, i));
+    CHECK(decodeInterface({"0", "1", "a", "f"}, i)); // hexadecimal
+    CHECK_EQ(i.sub, 10);
+    CHECK(!decodeInterface({"0", "1", "x", "0"}, i));
+    std::vector<std::string> hex;
+    CHECK(parseReadAnswer(":r24=0,1,a,0.", 24, hex));
+    CHECK(!parseReadAnswer(":r23=0,1,a,0.", 23, hex)); // letters only in register 24
 
     // scaled values (Theremino script: sweep start Hz x 10, PWM width us x 1000, period us x 100)
     CHECK(encodeScaled(1234.5, 10, f));

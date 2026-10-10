@@ -57,7 +57,12 @@ void Psg9080::close() {
     emit connectionChanged(false);
 }
 
+bool Psg9080::refuseWhileTransferring() {
+    return transferring ? !fail(tr("O gerador está ocupado transferindo uma onda arbitrária.")) : false;
+}
+
 bool Psg9080::exchange(const std::string &command, std::string &answer) {
+    if (refuseWhileTransferring()) return false;
     if (!port->isOpen()) return fail(tr("Gerador não conectado."));
     // Drop anything left from an earlier command (a late answer after a timeout, power-up noise)
     port->clear(QSerialPort::Input);
@@ -285,6 +290,10 @@ bool Psg9080::memory(int slot, MemoryOp op) {
 
 bool Psg9080::exchangeLines(const std::string &command, int lines, int timeoutMs, std::vector<std::string> &answer,
                             const std::function<bool(qint64)> &onBytes) {
+    if (transferring && !onBytes) { // only the arbitrary read itself passes onBytes
+        refuseWhileTransferring();
+        return false;
+    }
     if (!port->isOpen()) return fail(tr("Gerador não conectado."));
     port->clear(QSerialPort::Input);
     port->readAll();
@@ -336,6 +345,11 @@ bool Psg9080::writeArbitrary(int slot, const std::vector<int> &codes, const Prog
         return fail(tr("A onda precisa de %1 pontos (tem %2).").arg(kArbitraryPoints).arg(codes.size()));
     // the device takes the waveform on its normal output screen (as PSG9080_ARB does)
     if (!setInterface({0, 1, 0, 1})) return false;
+    struct Guard {
+        bool &flag;
+        explicit Guard(bool &f) : flag(f) { flag = true; }
+        ~Guard() { flag = false; }
+    } guard(transferring);
     port->clear(QSerialPort::Input);
     port->readAll();
     const std::string command = arbitraryWriteCommand(slot, codes);
@@ -374,6 +388,11 @@ bool Psg9080::readArbitrary(int slot, std::vector<int> &codes, const Progress &p
     if (slot < 1 || slot > 99) return fail(tr("Posição de onda arbitrária inválida: %1 (1 a 99).").arg(slot));
     if (!setInterface({0, 1, 0, 1})) return false;
     std::vector<std::string> lines;
+    struct Guard {
+        bool &flag;
+        explicit Guard(bool &f) : flag(f) { flag = true; }
+        ~Guard() { flag = false; }
+    } guard(transferring);
     const qint64 expected = (qint64)kArbitraryPoints * 6; // ~6 characters per point
     auto onBytes = [&](qint64 n) { return !progress || progress((int)std::min<qint64>(99, 100 * n / expected)); };
     if (!exchangeLines(arbitraryReadCommand(slot), 1, 15000, lines, onBytes)) return false;

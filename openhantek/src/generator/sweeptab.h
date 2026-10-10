@@ -22,6 +22,7 @@ class SweepTab : public psgui::GeneratorTab {
 
   public:
     explicit SweepTab(Psg9080 *generator, QWidget *parent = nullptr);
+    ~SweepTab() override;
     void refresh() override;
 
   private:
@@ -36,7 +37,7 @@ class SweepTab : public psgui::GeneratorTab {
     QDoubleSpinBox *startAmp, *endAmp, *startDuty, *endDuty, *timeBox;
     QPushButton *runButton;
     QLabel *elapsedLabel, *explain;
-    QFormLayout *form;
+    psgui::Form *form;
     QTimer *ticker;
     QElapsedTimer clock;
     bool running = false;

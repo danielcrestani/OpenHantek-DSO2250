@@ -92,6 +92,13 @@ inline QString panelSheet() {
            "QComboBox::down-arrow { image: url(\":/style/arrow-down.png\"); width: 10px; height: 6px; }"
            "QComboBox::down-arrow:disabled { image: url(\":/style/arrow-down-disabled.png\"); }"
            "QCheckBox, QRadioButton { color: #e6e9ee; spacing: 6px; }"
+           // visible boxes on the dark panel (the Fusion ones almost disappear)
+           "QCheckBox::indicator { width: 14px; height: 14px; border: 1px solid #6c737d; border-radius: 3px;"
+           "  background: #11141a; }"
+           "QCheckBox::indicator:hover { border-color: #5a95e0; }"
+           "QCheckBox::indicator:checked { background: #2f6fbf; border-color: #5a95e0;"
+           "  image: url(\":/style/check.png\"); }"
+           "QCheckBox::indicator:disabled { background: #1b1e24; border-color: #3a404a; }"
            "QProgressBar { background: #11141a; color: #e6e9ee; border: 1px solid #3a404a; border-radius: 4px;"
            "  text-align: center; min-height: 18px; }"
            "QProgressBar::chunk { background: #2f6fbf; border-radius: 3px; }"

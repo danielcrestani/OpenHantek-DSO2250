@@ -62,8 +62,7 @@ ModulationTab::ModulationTab(Psg9080 *generator, QWidget *parent) : GeneratorTab
 
     QGroupBox *box = new QGroupBox(tr("Modulação"));
     darkstyle::colorSection(box, darkstyle::orange());
-    form = new QFormLayout(box);
-    form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    form = new psgui::Form(box);
     form->addRow(tr("Tipo"), typeBox);
     form->addRow(tr("Fonte"), sourceBox);
     form->addRow(tr("Onda moduladora"), waveBox);
@@ -127,7 +126,7 @@ int ModulationTab::channel() const { return channelBox->currentData().toInt(); }
 
 void ModulationTab::updateRows() {
     const int t = typeBox->currentIndex();
-    auto show = [this](QWidget *field, bool visible) { psgui::setRowVisible(form, field, visible); };
+    auto show = [this](QWidget *field, bool visible) { form->setRowVisible(field, visible); };
     const bool analog = t == AM || t == FM || t == PM;
     const bool keyed = t == ASK || t == FSK || t == PSK;
     show(sourceBox, analog || keyed);
@@ -145,9 +144,9 @@ void ModulationTab::updateRows() {
     show(idleBox, t == BURST);
     show(triggerBox, t == BURST);
     show(fireButton, t == BURST);
-    form->labelForField(rate)->setProperty("text", keyed ? tr("Taxa") : tr("Frequência moduladora"));
-    form->labelForField(depth)->setProperty("text", t == ASK ? tr("Amplitude ASK") : tr("Profundidade"));
-    form->labelForField(phase)->setProperty("text", t == PSK ? tr("Fase PSK") : tr("Desvio de fase"));
+    form->labelFor(rate)->setText(keyed ? tr("Taxa") : tr("Frequência moduladora"));
+    form->labelFor(depth)->setText(t == ASK ? tr("Amplitude ASK") : tr("Profundidade"));
+    form->labelFor(phase)->setText(t == PSK ? tr("Fase PSK") : tr("Desvio de fase"));
 
     QString text;
     switch (t) {
@@ -227,3 +226,5 @@ void ModulationTab::refresh() {
     check(ok);
     updateRows();
 }
+
+ModulationTab::~ModulationTab() { delete form; }

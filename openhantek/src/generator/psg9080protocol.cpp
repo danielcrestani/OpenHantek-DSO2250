@@ -69,8 +69,13 @@ bool parseReadAnswer(const std::string &line, int expectedCode, std::vector<std:
         if (comma == std::string::npos) break;
         start = comma + 1;
     }
-    for (const std::string &f : out)
-        if (!isDigits(f, true)) return false;
+    for (const std::string &f : out) {
+        if (isDigits(f, true)) continue;
+        // the screen selectors (register 24) are hexadecimal
+        if (expectedCode != REG_INTERFACE || f.empty() ||
+            f.find_first_not_of("0123456789abcdefABCDEF") != std::string::npos)
+            return false;
+    }
     fields = out;
     return true;
 }
@@ -178,10 +183,12 @@ std::vector<std::string> encodeInterface(const Interface &i) {
 bool decodeInterface(const std::vector<std::string> &fields, Interface &i) {
     if (fields.size() != 4) return false;
     int v[4];
-    for (int k = 0; k < 4; ++k) {
-        long long x = 0;
-        if (!toInteger(fields[k], x)) return false;
-        v[k] = (int)x;
+    for (int k = 0; k < 4; ++k) { // hexadecimal selectors
+        const std::string &f = fields[k];
+        if (f.empty() || f.size() > 4) return false;
+        char *end = nullptr;
+        v[k] = (int)std::strtol(f.c_str(), &end, 16);
+        if (*end != '\0') return false;
     }
     i = {v[0], v[1], v[2], v[3]};
     return true;

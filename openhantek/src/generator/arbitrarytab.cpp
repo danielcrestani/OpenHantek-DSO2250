@@ -98,8 +98,7 @@ ArbitraryTab::ArbitraryTab(Psg9080 *generator, QWidget *parent) : GeneratorTab(g
 
     QGroupBox *create = new QGroupBox(tr("Criar a onda"));
     darkstyle::colorSection(create, darkstyle::orange());
-    QFormLayout *cf = new QFormLayout(create);
-    cf->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    psgui::Form *cf = new psgui::Form(create);
     cf->addRow(tr("Exemplo"), exampleBox);
     cf->addRow(tr("Fórmula"), formulaRow);
     cf->addRow(QString(), psgui::hint(tr("t vai de 0 a 1 no período e x = 2πt. Funções: sin cos exp sqrt abs, "
@@ -110,9 +109,9 @@ ArbitraryTab::ArbitraryTab(Psg9080 *generator, QWidget *parent) : GeneratorTab(g
     cf->addRow(tr("Coluna"), columnBox);
     cf->addRow(tr("Aquisição"), acquisitionBox);
     fileForm = cf;
-    psgui::setRowVisible(cf, columnBox, false);
-    psgui::setRowVisible(cf, acquisitionBox, false);
-    psgui::setRowVisible(cf, fileLabel, false);
+    cf->setRowVisible(columnBox, false);
+    cf->setRowVisible(acquisitionBox, false);
+    cf->setRowVisible(fileLabel, false);
 
     scalingBox = psgui::combo({tr("Normalizar (mínimo e máximo usam os 14 bits)"), tr("Fixa: −1 a +1")});
     invertBox = new QCheckBox(tr("Inverter"));
@@ -225,7 +224,7 @@ void ArbitraryTab::generate() {
         return;
     }
     for (QWidget *w : {(QWidget *)fileLabel, (QWidget *)columnBox, (QWidget *)acquisitionBox})
-        psgui::setRowVisible(fileForm, w, false);
+        fileForm->setRowVisible(w, false);
     setSource(v, formulaEdit->text().trimmed());
     say(tr("Onda gerada pela fórmula."));
 }
@@ -254,7 +253,7 @@ void ArbitraryTab::openFile() {
     }
     table = std::move(t);
     fileLabel->setText(QFileInfo(name).fileName());
-    psgui::setRowVisible(fileForm, fileLabel, true);
+    fileForm->setRowVisible(fileLabel, true);
 
     // columns with numbers in every line
     {
@@ -275,8 +274,8 @@ void ArbitraryTab::openFile() {
         acquisitionBox->setRange(1, std::max(1, acquisitions));
         acquisitionBox->setValue(1);
     }
-    psgui::setRowVisible(fileForm, acquisitionBox, table.openHantekLog && acquisitions > 1);
-    psgui::setRowVisible(fileForm, columnBox, !table.openHantekLog && columnBox->count() > 1);
+    fileForm->setRowVisible(acquisitionBox, table.openHantekLog && acquisitions > 1);
+    fileForm->setRowVisible(columnBox, !table.openHantekLog && columnBox->count() > 1);
     pickFromTable();
 }
 
@@ -341,7 +340,7 @@ void ArbitraryTab::readSlot() {
     progress.reset();
     if (!check(ok)) return;
     for (QWidget *w : {(QWidget *)fileLabel, (QWidget *)columnBox, (QWidget *)acquisitionBox})
-        psgui::setRowVisible(fileForm, w, false);
+        fileForm->setRowVisible(w, false);
     setSource(arbwave::fromCodes(c), tr("posição %1 do gerador").arg(slot), true);
     say(tr("Onda %1 lida do gerador.").arg(slot));
 }
@@ -366,3 +365,5 @@ void ArbitraryTab::useOn(int channel) {
     if (check(gen->setWaveform(channel, psg9080::kArbitraryFirst - 1 + slot)))
         say(tr("CH%1 usando a Arbitrária %2.").arg(channel).arg(slot, 2, 10, QChar('0')));
 }
+
+ArbitraryTab::~ArbitraryTab() { delete fileForm; }

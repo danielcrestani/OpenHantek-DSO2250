@@ -39,6 +39,7 @@ class ArbitraryTab : public psgui::GeneratorTab {
 
   public:
     explicit ArbitraryTab(Psg9080 *generator, QWidget *parent = nullptr);
+    ~ArbitraryTab() override;
     void refresh() override {}
     /// Load values (any length, any unit) as the current waveform; used by the formula, files and the tests.
     void setSource(const std::vector<double> &values, const QString &name, bool exactCodes = false);
@@ -61,7 +62,7 @@ class ArbitraryTab : public psgui::GeneratorTab {
     QLineEdit *formulaEdit;
     QSpinBox *acquisitionBox, *slotBox;
     QCheckBox *invertBox;
-    QFormLayout *fileForm;
+    psgui::Form *fileForm;
     QLabel *fileLabel;
     WavePreview *preview;
     QPushButton *readButton, *writeButton, *useButtons[2], *saveButton;
