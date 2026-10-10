@@ -157,6 +157,131 @@ bool decodeOutputs(const std::vector<std::string> &fields, bool &ch1, bool &ch2)
     return true;
 }
 
+Interface waveformInterface(int channel) { return {0, channel, 0, 0}; }
+Interface modulationInterface(int channel) { return {0, channel, 7, 7}; }
+Interface measurementInterface() { return {0, 4, 0, 1}; }
+Interface sweepInterface() { return {0, 6, 0, 1}; }
+Interface vcoInterface() { return {0, 7, 0, 1}; }
+
+std::vector<std::string> encodeInterface(const Interface &i) {
+    // the device documents these as hexadecimal selectors; every value used here is below 10
+    char buf[4][8];
+    const int v[4] = {i.a, i.page, i.sub, i.item};
+    std::vector<std::string> out;
+    for (int k = 0; k < 4; ++k) {
+        std::snprintf(buf[k], sizeof buf[k], "%x", v[k] & 0xff);
+        out.push_back(buf[k]);
+    }
+    return out;
+}
+
+bool decodeInterface(const std::vector<std::string> &fields, Interface &i) {
+    if (fields.size() != 4) return false;
+    int v[4];
+    for (int k = 0; k < 4; ++k) {
+        long long x = 0;
+        if (!toInteger(fields[k], x)) return false;
+        v[k] = (int)x;
+    }
+    i = {v[0], v[1], v[2], v[3]};
+    return true;
+}
+
+bool encodeScaled(double value, double scale, std::vector<std::string> &fields, double offset) {
+    if (!std::isfinite(value)) return false;
+    fields = {integerString(roundTicks(value * scale + offset))};
+    return true;
+}
+
+bool decodeScaled(const std::vector<std::string> &fields, double scale, double &value, double offset) {
+    long long v = 0;
+    if (!decodeInteger(fields, v) || scale == 0) return false;
+    value = (v - offset) / scale;
+    return true;
+}
+
+std::vector<std::string> encodePair(long long ch1, long long ch2) { return {integerString(ch1), integerString(ch2)}; }
+
+bool decodePair(const std::vector<std::string> &fields, long long &ch1, long long &ch2) {
+    return fields.size() == 2 && toInteger(fields[0], ch1) && toInteger(fields[1], ch2);
+}
+
+std::string readAllCommand(int last) {
+    char buf[32];
+    std::snprintf(buf, sizeof buf, ":r00=%d.\r\n", last);
+    return buf;
+}
+
+bool parseAnyReadAnswer(const std::string &line, int &code, std::vector<std::string> &fields) {
+    if (line.size() < 6 || line[0] != ':' || line[1] != 'r') return false;
+    const size_t eq = line.find('=');
+    if (eq == std::string::npos || eq < 3) return false;
+    long long c = 0;
+    if (!toInteger(line.substr(2, eq - 2), c) || c < 0) return false;
+    code = (int)c;
+    return parseReadAnswer(line, code, fields);
+}
+
+bool decodeVersions(const std::vector<std::string> &fields, std::vector<std::string> &versions) {
+    std::vector<std::string> out;
+    for (const std::string &f : fields) {
+        long long v = 0;
+        if (!toInteger(f, v) || v < 0) return false;
+        char buf[32];
+        std::snprintf(buf, sizeof buf, "%lld.%02lld", v / 100, v % 100);
+        out.push_back(buf);
+    }
+    if (out.empty()) return false;
+    versions = out;
+    return true;
+}
+
+static std::string slotText(int slot) {
+    char buf[8];
+    std::snprintf(buf, sizeof buf, "%02d", slot);
+    return buf;
+}
+
+std::string arbitraryWriteCommand(int slot, const std::vector<int> &codes) {
+    std::string cmd = ":A" + slotText(slot) + "=";
+    cmd.reserve(cmd.size() + codes.size() * 6 + 2);
+    char buf[16];
+    for (int c : codes) {
+        const int v = c < 0 ? 0 : (c > kArbitraryMaxCode ? kArbitraryMaxCode : c);
+        std::snprintf(buf, sizeof buf, "%d,", v);
+        cmd += buf;
+    }
+    return cmd + "\r\n";
+}
+
+std::string arbitraryReadCommand(int slot) { return ":B" + slotText(slot) + "=0.\r\n"; }
+
+bool parseArbitraryAnswer(const std::string &line, int slot, std::vector<int> &codes) {
+    const std::string prefix = ":B" + slotText(slot) + "=";
+    if (line.compare(0, prefix.size(), prefix) != 0) return false;
+    std::vector<int> out;
+    out.reserve(kArbitraryPoints);
+    size_t i = prefix.size();
+    while (i < line.size()) {
+        size_t end = line.find(',', i);
+        if (end == std::string::npos) end = line.size();
+        std::string f = line.substr(i, end - i);
+        if (!f.empty() && f.back() == '.') f.pop_back();
+        if (!f.empty()) {
+            long long v = 0;
+            if (!toInteger(f, v) || v < 0 || v > 65535) return false;
+            out.push_back((int)v);
+        }
+        i = end + 1;
+    }
+    if (out.size() != (size_t)kArbitraryPoints) return false;
+    // The device answers with 16-bit values (the scale of the original software's files) although it is
+    // written with 14-bit ones; PSG9080_ARB (tested on hardware) shifts every value read by 2 bits.
+    for (int &v : out) v >>= 2;
+    codes = out;
+    return true;
+}
+
 const char *waveformName(int code) {
     static const char *names[kBuiltinWaveforms] = {
         "Senoidal",          "Quadrada",           "Pulso",           "Triangular",         "Rampa",

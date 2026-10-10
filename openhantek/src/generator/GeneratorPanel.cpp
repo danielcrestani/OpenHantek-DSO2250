@@ -189,7 +189,7 @@ QGroupBox *GeneratorPanel::makeChannel(int channel, const QString &color) {
     freqRow->addWidget(c.unit);
 
     c.amplitude = makeSpin(3, 0, kMaxAmplitude, 0.1, " Vpp");
-    c.offset = makeSpin(2, -kMaxOffset, kMaxOffset, 0.1, " V");
+    c.offset = makeSpin(2, kMinOffset, kMaxOffset, 0.1, " V");
     c.duty = makeSpin(2, 0, 100, 1, " %");
     c.phase = makeSpin(2, 0, 359.99, 1, QString::fromUtf8(" °"));
     connect(c.amplitude, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,

@@ -200,7 +200,7 @@ QWidget *BodeWindow::makeSettings() {
     amplitudeBox->setSuffix(" Vpp");
     offsetBox = new QDoubleSpinBox;
     offsetBox->setDecimals(2);
-    offsetBox->setRange(-psg9080::kMaxOffset, psg9080::kMaxOffset);
+    offsetBox->setRange(psg9080::kMinOffset, psg9080::kMaxOffset);
     offsetBox->setSingleStep(0.1);
     offsetBox->setSuffix(" V");
     gf->addRow(tr("Porta"), portRow);

@@ -90,10 +90,78 @@ static void channelValues() {
     CHECK_EQ(std::string(waveformName(150)), std::string(""));
 }
 
+static void generalRegisters() {
+    std::vector<std::string> f;
+    // interface selectors, as the Theremino script and PSG9080_ARB send them
+    CHECK_EQ(writeCommand(REG_INTERFACE, encodeInterface(modulationInterface(2))), std::string(":w24=0,2,7,7.\r\n"));
+    CHECK_EQ(writeCommand(REG_INTERFACE, encodeInterface(sweepInterface())), std::string(":w24=0,6,0,1.\r\n"));
+    CHECK_EQ(writeCommand(REG_INTERFACE, encodeInterface(waveformInterface(1))), std::string(":w24=0,1,0,0.\r\n"));
+    Interface i;
+    CHECK(decodeInterface({"0", "4", "0", "1"}, i));
+    CHECK_EQ(i.page, 4);
+    CHECK(!decodeInterface({"0", "4"}, i));
+
+    // scaled values (Theremino script: sweep start Hz x 10, PWM width us x 1000, period us x 100)
+    CHECK(encodeScaled(1234.5, 10, f));
+    CHECK_EQ(f[0], std::string("12345"));
+    CHECK(encodeScaled(1e-6, 1e9, f)); // 1 us pulse width in ns
+    CHECK_EQ(f[0], std::string("1000"));
+    CHECK(encodeScaled(0.25, 100, f, 1000)); // offset-style
+    CHECK_EQ(f[0], std::string("1025"));
+    double v = 0;
+    CHECK(decodeScaled({"0000012345"}, 10, v));
+    CHECK_NEAR(v, 1234.5, 1e-9);
+    CHECK(!encodeScaled(std::nan(""), 10, f));
+    CHECK_EQ(writeCommand(REG_MEMORY, {"5", std::to_string((int)MemoryOp::Save)}), std::string(":w26=5,222.\r\n"));
+    long long a = 0, b = 0;
+    CHECK(decodePair({"0000000010", "0000000020"}, a, b));
+    CHECK_EQ(a, 10LL);
+    CHECK_EQ(b, 20LL);
+    CHECK_EQ(writeCommand(REG_BURST_COUNT, encodePair(5, 1)), std::string(":w61=5,1.\r\n"));
+
+    // bulk read: one answer line per register
+    CHECK_EQ(readAllCommand(), std::string(":r00=90.\r\n"));
+    int code = -1;
+    CHECK(parseAnyReadAnswer(":r28=100.", code, f));
+    CHECK_EQ(code, 28);
+    CHECK(parseAnyReadAnswer(":r00=80.", code, f));
+    CHECK_EQ(code, 0);
+    CHECK(!parseAnyReadAnswer(":ok", code, f));
+    std::vector<std::string> versions;
+    CHECK(decodeVersions({"120", "120", "105"}, versions));
+    CHECK_EQ(versions[2], std::string("1.05"));
+}
+
+static void arbitrary() {
+    std::vector<int> codes(kArbitraryPoints, 8192);
+    codes[0] = 0;
+    codes[1] = 16383;
+    codes[2] = 20000; // clamped
+    codes[3] = -5;    // clamped
+    const std::string cmd = arbitraryWriteCommand(7, codes);
+    CHECK_EQ(cmd.substr(0, 20), std::string(":A07=0,16383,16383,0"));
+    CHECK_EQ(cmd.substr(cmd.size() - 7), std::string("8192,\r\n"));
+    CHECK_EQ(arbitraryReadCommand(12), std::string(":B12=0.\r\n"));
+
+    // the device answers in 16 bits: 65532 -> 16383
+    std::string answer = ":B03=";
+    for (int k = 0; k < kArbitraryPoints; ++k) answer += k == 0 ? "65532," : "32768,";
+    std::vector<int> back;
+    CHECK(parseArbitraryAnswer(answer, 3, back));
+    CHECK_EQ(back.size(), (size_t)kArbitraryPoints);
+    CHECK_EQ(back[0], 16383);
+    CHECK_EQ(back[1], 8192);
+    CHECK(!parseArbitraryAnswer(answer, 4, back));          // other slot
+    CHECK(!parseArbitraryAnswer(":B03=1,2,3,", 3, back));   // too short
+    CHECK(!parseArbitraryAnswer(":B03=1,x,3,", 3, back));
+}
+
 int main() {
     commands();
     readAnswers();
     frequency();
     channelValues();
+    generalRegisters();
+    arbitrary();
     return testing::report("psg9080protocol");
 }
