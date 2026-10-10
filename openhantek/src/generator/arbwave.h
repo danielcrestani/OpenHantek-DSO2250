@@ -21,7 +21,9 @@ constexpr int kMaxCode = 16383;
 /// Constants: pi, e. Operators: + - * / % ^, comparisons < <= > >= == != (1 or 0), unary -, parentheses.
 /// Functions: sin cos tan asin acos atan sinh cosh tanh exp ln log log10 sqrt abs sign floor ceil round frac,
 /// sinc(x) = sin(x)/x, square(x) / tri(x) / saw(x) (period 2*pi, -1..1), pulse(x, duty) (period 2*pi, 0/1),
-/// gauss(z) = exp(-z^2/2), noise() (deterministic, -1..1), min(a,b) max(a,b) pow(a,b) mod(a,b) atan2(y,x)
+/// gauss(z) = exp(-z^2/2), noise() (white, uniform -1..1), gnoise() (white, Gaussian-like), pink() (1/f),
+/// brown() (1/f^2) — all deterministic, so a formula always gives the same waveform —, min(a,b) max(a,b) pow(a,b)
+/// mod(a,b) atan2(y,x)
 /// and if(c, a, b).
 class Expression {
   public:

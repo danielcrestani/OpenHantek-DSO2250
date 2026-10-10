@@ -40,6 +40,35 @@ double noiseAt(int n) { // deterministic: the same formula always gives the same
     return v / 2147483647.5 - 1.0;
 }
 
+/// Independent noise sources: source k at index i (deterministic).
+double noiseSource(int k, int i) { return noiseAt(i * 31 + k * 1000003 + 7); }
+
+/// Pink (1/f, -3 dB/octave) by the Voss-McCartney method: source k changes every 2^k points, so the sum can be
+/// computed for each point alone. 13 octaves cover the 8192 points of a period.
+double pinkAt(int n) {
+    double sum = noiseAt(n);
+    for (int k = 1; k <= 13; ++k) sum += noiseSource(k, n >> k);
+    return sum / 4.2; // about the same RMS as the uniform white noise
+}
+
+/// Brown (1/f^2, -6 dB/octave): the same sources, weighted by 2^(k/2) (each octave twice the power below).
+double brownAt(int n) {
+    double sum = 0, weights = 0;
+    for (int k = 0; k <= 13; ++k) {
+        const double w = std::pow(2.0, k / 2.0);
+        sum += w * noiseSource(k, n >> k);
+        weights += w * w;
+    }
+    return sum / std::sqrt(weights) * 0.58;
+}
+
+/// Gaussian-like white noise (sum of 4 uniform values): crest factor about 3, like real noise.
+double gaussNoiseAt(int n) {
+    double sum = 0;
+    for (int k = 0; k < 4; ++k) sum += noiseSource(20 + k, n);
+    return sum / 2.0 * 0.58;
+}
+
 enum class Var { T, X, N, Count };
 
 struct Function {
@@ -50,7 +79,8 @@ const Function kFunctions[] = {
     {"sin", 1},   {"cos", 1},    {"tan", 1},   {"asin", 1},   {"acos", 1},  {"atan", 1},  {"sinh", 1},
     {"cosh", 1},  {"tanh", 1},   {"exp", 1},   {"ln", 1},     {"log", 1},   {"log10", 1}, {"sqrt", 1},
     {"abs", 1},   {"sign", 1},   {"floor", 1}, {"ceil", 1},   {"round", 1}, {"frac", 1},  {"sinc", 1},
-    {"square", 1}, {"tri", 1},   {"saw", 1},   {"gauss", 1},  {"pulse", 2}, {"noise", 0}, {"min", 2},
+    {"square", 1}, {"tri", 1},   {"saw", 1},   {"gauss", 1},  {"pulse", 2}, {"noise", 0}, {"pink", 0},
+    {"brown", 0}, {"gnoise", 0}, {"min", 2},
     {"max", 2},   {"pow", 2},    {"mod", 2},   {"atan2", 2},  {"if", 3},
 };
 } // namespace
@@ -94,6 +124,9 @@ struct Expression::Node {
         case Call: {
             const std::string name = kFunctions[function].name;
             if (name == "noise") return noiseAt(n);
+            if (name == "pink") return pinkAt(n);
+            if (name == "brown") return brownAt(n);
+            if (name == "gnoise") return gaussNoiseAt(n);
             if (name == "if") return args[0]->eval(t, x, n, count) != 0 ? args[1]->eval(t, x, n, count)
                                                                           : args[2]->eval(t, x, n, count);
             const double a = args[0]->eval(t, x, n, count);
@@ -602,7 +635,11 @@ const std::vector<Example> &examples() {
         {"SPWM unipolar 3 níveis (51 pulsos)", "(0.9*sin(x) > tri(51*x)) - (-0.9*sin(x) > tri(51*x))"},
         {"SPWM bipolar (21 pulsos, fácil de ver)", "if(0.9*sin(x) > tri(21*x), 1, -1)"},
         {"Senoide com ruído", "sin(x) + 0.1*noise()"},
-        {"Ruído", "noise()"},
+        // audio: with the channel at 5 Hz a period of 8192 points plays at 41 kS/s (up to ~20 kHz)
+        {"Ruído branco (uniforme)", "noise()"},
+        {"Ruído branco gaussiano (áudio)", "gnoise()"},
+        {"Ruído rosa, -3 dB/oitava (áudio)", "pink()"},
+        {"Ruído marrom, -6 dB/oitava (áudio)", "brown()"},
         {"ECG estilizado", "gauss((t-0.2)*40)*0.15 + gauss((t-0.35)*150) - 0.2*gauss((t-0.32)*150) - "
                            "0.25*gauss((t-0.38)*150) + 0.3*gauss((t-0.6)*25)"},
     };

@@ -169,6 +169,11 @@ Cria uma forma de onda de 8192 pontos (14 bits) e grava em uma das **99 posiçõ
   como em inversores senoidais: `if(0.9*sin(x) > tri(51*x), 1, -1)` compara a senoide com uma portadora
   triangular de 51 ciclos por período (índice de modulação 0,9). Com o canal em 60 Hz a portadora fica em
   3060 Hz. A modulação “Pulso (PWM)” do aparelho não faz isso: ela só define largura e período fixos.
+  **Ruídos para áudio:** `noise()` (branco uniforme), `gnoise()` (branco gaussiano, fator de crista ≈ 3),
+  `pink()` (rosa, −3 dB/oitava) e `brown()` (marrom, −6 dB/oitava). Os 8192 pontos de um período saem a
+  8192 × a frequência do canal: com o canal em **5 Hz** são 41 kS/s (até ~20 kHz); em 10 Hz, 82 kS/s. O
+  ruído se repete a cada período (0,2 s em 5 Hz) — serve para medir resposta e equalização, não para ouvir
+  como ruído “de verdade” por muito tempo.
 - **Arquivo**: uma coluna de números, ou CSV com colunas (escolha a coluna). O arquivo de registro de forma de
   onda do OpenHantek (● REG, conteúdo “forma de onda”) é reconhecido: escolha a aquisição — assim uma forma
   capturada pelo DSO-2250 pode ser reproduzida pelo gerador. Arquivos de 8192 valores inteiros (formato do
