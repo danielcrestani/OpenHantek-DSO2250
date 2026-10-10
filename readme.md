@@ -40,9 +40,11 @@ parecida com a de um osciloscópio de bancada.
 
 **Três programas no mesmo projeto**
 - **OpenHantek** — osciloscópio e FFT do DSO-2250.
-- **PSG9080** — controle do gerador de funções Joy-IT / JunTek PSG9080 pela USB: os dois canais (forma de onda,
-  frequência de µHz a 80 MHz, amplitude, offset, duty, fase, saída) e presets por canal ou para os dois
-  (mesmo arquivo do psg-gui em Python).
+- **PSG9080** — controle completo do gerador de funções Joy-IT / JunTek PSG9080 pela USB, em abas: os dois
+  canais (forma de onda, frequência de µHz a 80 MHz, amplitude, offset, duty, fase, saída) com presets;
+  modulação (AM, FM, PM, ASK, FSK, PSK, pulso, burst); varredura e VCO do aparelho; frequencímetro e contador da
+  entrada Ext.IN; editor de ondas arbitrárias (fórmula, arquivo ou captura do OpenHantek) com envio às 99
+  posições do gerador; sequências programadas; sincronismo, memórias e diagnóstico dos registradores.
 - **OpenHantekBode** — resposta em frequência: o PSG9080 varre a frequência, o DSO-2250 mede a entrada e a saída
   do circuito e o programa traça ganho (dB) e fase (°) em escala logarítmica. Escalas automáticas, média por
   ponto, calibração com as duas ponteiras no mesmo ponto, visualização ao vivo dos dois canais, CSV e imagem.

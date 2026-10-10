@@ -56,7 +56,6 @@ class ArbitraryTab : public psgui::GeneratorTab {
     void useOn(int channel);
     std::vector<int> codes() const;
     void updatePreview();
-    void say(const QString &text, bool error = false) { emit statusMessage(text, error); }
 
     QComboBox *exampleBox, *columnBox, *scalingBox;
     QLineEdit *formulaEdit;

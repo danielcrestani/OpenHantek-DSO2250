@@ -78,7 +78,7 @@ class GeneratorTab : public QWidget {
     void showEvent(QShowEvent *event) override;
     /// Show the driver error if `ok` is false; returns ok.
     bool check(bool ok);
-    void say(const QString &text) { emit statusMessage(text, false); }
+    void say(const QString &text, bool error = false) { emit statusMessage(text, error); }
     /// Called when the connection opens or closes (default: enable the tab and read it).
     virtual void connectionChanged(bool open);
 

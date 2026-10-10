@@ -63,7 +63,12 @@ Cada alteração está num commit separado, a partir de `836cd98`. Resumo por á
   aparelho pelo driver pypsgctrl (inclusive as unidades mHz/µHz); comunicação com `QSerialPort`
   (`src/generator/psg9080.*`), descartando bytes antigos antes de cada comando; painel dos canais
   (`GeneratorPanel`) e presets compatíveis com o psg-gui em Python (`psg9080presets.*`).
-- **PSG9080** (`src/apps/psg9080*`): programa do gerador em Qt/C++.
+- **PSG9080** (`src/apps/psg9080*`): programa do gerador em Qt/C++, em abas. Protocolo completo: registradores
+  de modulação, varredura/VCO, medição, sincronismo, memórias e sistema (fontes: protocolo do fabricante via
+  pypsgctrl, script PSG9080 do Theremino, PSG9080_ARB), leitura de todos os registradores de uma vez
+  (`:r00=90.`) e envio/leitura de ondas arbitrárias (`:Ann=` / `:Bnn=`, 8192 pontos de 14 bits, como no
+  PSG9080_ARB de qrp73). Abas em `src/generator/*tab.*`; ondas por fórmula/arquivo em `arbwave.*` (sem Qt,
+  com testes).
 - **OpenHantekBode** (`src/apps/bode_main.cpp`, `src/bode/*`): varredura logarítmica, duração da aquisição e
   escalas automáticas, aquisições numeradas (`SampleTap`) para ignorar as antigas com exatidão, média por
   ponto, DFT de uma frequência com janela de Hann e refinamento de frequência, subamostragem coerente acima de

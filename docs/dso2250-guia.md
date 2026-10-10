@@ -128,18 +128,66 @@ a usar só a calibração de fábrica.
 
 ## 13. Programa PSG9080 (gerador de funções)
 
-`./openhantek/PSG9080` controla o gerador Joy-IT / JunTek PSG9080 pela USB (porta serial, normalmente
-`/dev/ttyUSB0`). Não precisa do osciloscópio.
+**PSG9080** (menu de aplicativos, ou `./openhantek/PSG9080`) controla o gerador Joy-IT / JunTek PSG9080 pela
+USB (porta serial, normalmente `/dev/ttyUSB0`). Não precisa do osciloscópio. A porta e o botão **Conectar**
+ficam no topo; as mensagens, embaixo. Se aparecer “sem permissão”, rode `sudo usermod -aG dialout $USER` e
+entre de novo na sessão. Cada aba relê o gerador quando é aberta (os botões do aparelho podem ter mudado algo).
 
-1. Ligue o gerador na USB, escolha a porta e clique em **Conectar**. Se aparecer “sem permissão”, rode
-   `sudo usermod -aG dialout $USER` e entre de novo na sessão.
-2. Em cada canal: **SAÍDA** liga/desliga; forma de onda (22 de fábrica e arbitrárias 01 a 99); frequência com
-   a unidade (Hz, kHz, MHz, mHz, µHz — aceita vírgula); amplitude (Vpp), offset, duty e fase.
-3. O valor é enviado ao apertar Enter, ao usar as setas ou ao sair do campo, e o painel relê o gerador: o que
-   aparece é o que o aparelho aceitou. **Ler do gerador** atualiza tudo; **Desligar saídas** desliga as duas.
-4. **Presets:** *Salvar atual…* guarda os dois canais ou um só; um preset de um canal pode ser aplicado no CH1
-   ou no CH2 (seletor *em*). Ao aplicar, as saídas são desligadas antes e religadas no fim. Os presets ficam em
-   `~/.config/psg9080-gui/presets.json`, o mesmo arquivo do psg-gui em Python.
+### Básico
+Em cada canal: **SAÍDA** liga/desliga; forma de onda (22 de fábrica e arbitrárias 01 a 99); frequência com a
+unidade (Hz, kHz, MHz, mHz, µHz — aceita vírgula); amplitude (até 25 Vpp abaixo de 1 MHz), offset (−9,99 a
++12 V), duty e fase. O valor vai ao apertar Enter, ao usar a roda/setas ou ao sair do campo, e o painel relê o
+gerador: o que aparece é o que o aparelho aceitou. **Presets:** *Salvar atual…* guarda os dois canais ou um só;
+um preset de um canal pode ser aplicado no CH1 ou no CH2. Ficam em `~/.config/psg9080-gui/presets.json`.
+
+### Modulação
+Escolha o canal, o **tipo** (AM, FM, PM, ASK, FSK, PSK, Pulso/PWM, Burst) e os parâmetros que aparecem para ele;
+cada campo vai na hora. **MODULAÇÃO LIGADA** põe o gerador na tela de modulação do canal (é assim que o aparelho
+ativa a modulação); desligar volta à tela normal. A portadora é a forma, frequência e amplitude do canal na aba
+Básico (senoidal, quadrada, rampa ou arbitrária). Fonte externa: entrada Ext.IN, 0 a 3 Vpp, até 20 kHz. No
+Burst, **Disparar agora** dispara uma rajada quando o disparo é manual.
+
+### Varredura
+Varredura feita pelo próprio gerador: canal, o que varrer (frequência, amplitude ou duty), valores inicial e
+final, tempo (0,01 a 640 s), sentido (subindo, descendo, ida e volta) e escala linear ou logarítmica. No modo
+**VCO**, a tensão de 0 a 5 V na Ext.IN leva o parâmetro do valor “em 0 V” ao valor “em 5 V”. Se o aparelho
+varrer outro parâmetro que não o escolhido, escolha-o também na tela dele (tecla FUNC) — o registrador que
+seleciona o parâmetro não é documentado. Para medir resposta em frequência use o **OpenHantekBode**.
+
+### Frequencímetro
+Mede o sinal da entrada **Ext.IN** (2 a 20 Vpp, 1 Hz a 100 MHz): frequência, período, larguras + e − e duty, ou
+conta pulsos (contador). Ajuste o acoplamento (AC/DC), o tempo de porta (0,001 a 10 s; maior = mais dígitos) e a
+faixa (baixa abaixo de 2 kHz). **Medir** começa a leitura contínua; mudar de aba ou **Parar** encerra e devolve o
+gerador à tela normal.
+
+### Ondas arbitrárias
+Cria uma forma de onda de 8192 pontos (14 bits) e grava em uma das **99 posições** do gerador:
+- **Fórmula**, com `t` de 0 a 1 no período e `x = 2πt`. Exemplos: `sin(x) + 0.3*sin(3*x)`,
+  `exp(-5*t)*sin(20*x)`, `if(t < 0.5, 1, -1)`. Funções: `sin cos tan exp ln sqrt abs sign floor round`,
+  `square(x) tri(x) saw(x) pulse(x, duty) sinc(x) gauss(z) noise() min max pow mod if`. Use **ponto** decimal.
+  A lista *Exemplos* tem 16 formas prontas (amortecida, sinc, chirp, AM, retificadas, ECG…).
+- **Arquivo**: uma coluna de números, ou CSV com colunas (escolha a coluna). O arquivo de registro de forma de
+  onda do OpenHantek (● REG, conteúdo “forma de onda”) é reconhecido: escolha a aquisição — assim uma forma
+  capturada pelo DSO-2250 pode ser reproduzida pelo gerador. Arquivos de 8192 valores inteiros (formato do
+  PSG9080_ARB, 0–16383, ou de 16 bits do software original) entram sem conversão.
+- **Ler do gerador**: traz a onda gravada na posição escolhida.
+
+*Escala*: **Normalizar** estica do mínimo ao máximo (usa toda a resolução; a amplitude se ajusta no canal) ou
+**Fixa** (−1 a +1). **Enviar ao gerador** grava a posição (≈5 s, com barra de progresso); **Usar no CH1/CH2**
+seleciona *Arbitrária NN* no canal; **Salvar arquivo…** grava 8192 linhas no formato do gerador.
+
+### Sequências
+Uma tabela de passos: canal (CH1, CH2 ou ambos), forma, frequência (aceita `1k`, `2,5 MHz`), amplitude, offset,
+saída e duração em segundos. Campos vazios ou “(manter)” não mudam o gerador. **Executar** roda os passos em
+ordem, **Repetir** N vezes (ou sem parar). **Copiar do gerador** cria um passo com o estado atual do canal. A
+tabela fica guardada para a próxima vez; **Salvar…/Abrir…** usam arquivos `.json`. O tempo é contado pelo PC
+(~10 ms de precisão).
+
+### Sistema
+Modelo, número de série e versões; **sincronismo** (o CH2 acompanha forma, frequência, amplitude, offset e duty
+do CH1) e ajuste fino; **memórias** 00 a 99 do aparelho (a 00 é carregada ao ligar): carregar, salvar, apagar;
+brilho, bipe, idioma e carregamento de ondas. **Registradores (diagnóstico)** lê os 91 registradores de uma vez
+e marca em amarelo o que mudou desde a leitura anterior — útil para descobrir o que um botão do aparelho altera.
 
 ## 14. Programa OpenHantekBode (resposta em frequência)
 
