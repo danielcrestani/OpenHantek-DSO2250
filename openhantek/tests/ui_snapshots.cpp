@@ -23,6 +23,7 @@
 #include <cmath>
 
 #include "apps/psg9080window.h"
+#include "power/powerpanel.h"
 #include "bode/bodeplot.h"
 #include "bode/scopepreview.h"
 #include "style/darkstyle.h"
@@ -115,5 +116,21 @@ int main(int argc, char *argv[]) {
     v->addWidget(plot, 3);
     v->addWidget(preview, 1);
     save(&bode, dir + "/bode.jpg", QSize(900, 640));
+
+    // Power analysis: 127 V / 60 Hz with 2 % of 5th harmonic, 4 A lagging 25° with 40 % of 3rd and 20 % of 5th
+    PowerPanel power;
+    PowerPanel::Input in;
+    in.dt = 1 / 50e3;
+    for (int k = 0; k < 10240; ++k) {
+        const double t = k * in.dt, w = 2 * 3.14159265358979 * 60, lag = 25 * 3.14159265358979 / 180;
+        in.v.push_back(127 * 1.41421356 * (std::sin(w * t) + 0.02 * std::sin(5 * w * t)));
+        in.i.push_back(4 * 1.41421356 * (std::sin(w * t - lag) + 0.4 * std::sin(3 * (w * t - lag)) +
+                                         0.2 * std::sin(5 * (w * t - lag))));
+    }
+    power.setData(in);
+    save(&power, dir + "/potencia.jpg", QSize(1150, 250));
+    const power::Result &pr = power.result();
+    fprintf(stderr, "potencia: valido=%d P=%.1f W S=%.1f VA Q=%.1f var FP=%.3f cos=%.3f phi=%.1f THDi=%.1f %%\n",
+            pr.valid, pr.p, pr.s, pr.q, pr.pf, pr.dpf, pr.phi1, pr.thdI);
     return 0;
 }

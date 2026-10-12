@@ -97,7 +97,7 @@ target_link_libraries(psg9080_core PUBLIC ${OPENHANTEK_QT_LIBS})
 openhantek_setup(psg9080_core)
 
 # --- OpenHantek: oscilloscope and FFT
-add_executable(${PROJECT_NAME} ${EXECTYPE} ${SRC} ${HEADERS} ${UI} res/configdialog.qrc ${TRANSLATION_BIN_FILES}
+add_executable(${PROJECT_NAME} ${EXECTYPE} ${SRC} ${HEADERS} ${UI} res/configdialog.qrc res/style.qrc ${TRANSLATION_BIN_FILES}
                ${TRANSLATION_QRC})
 target_link_libraries(${PROJECT_NAME} openhantek_core ${OPENHANTEK_QT_LIBS} ${OPENGL_LIBRARIES})
 openhantek_setup(${PROJECT_NAME})
@@ -130,7 +130,7 @@ include(../cmake/copy_qt_dlls_to_bin_dir.cmake)
 option(OPENHANTEK_TESTS "Build the unit tests" OFF)
 if (OPENHANTEK_TESTS)
     enable_testing()
-    foreach(T psg9080protocol bodeanalysis arbwave)
+    foreach(T psg9080protocol bodeanalysis arbwave poweranalysis)
         add_executable(test_${T} tests/test_${T}.cpp)
         target_include_directories(test_${T} PRIVATE src tests)
         set_target_properties(test_${T} PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
@@ -139,6 +139,7 @@ if (OPENHANTEK_TESTS)
     target_sources(test_psg9080protocol PRIVATE src/generator/psg9080protocol.cpp)
     target_sources(test_bodeanalysis PRIVATE src/bode/bodeanalysis.cpp)
     target_sources(test_arbwave PRIVATE src/generator/arbwave.cpp)
+    target_sources(test_poweranalysis PRIVATE src/power/poweranalysis.cpp)
     # Qt test: the C++ presets read and write the same file as the Python psg-gui
     add_executable(test_psg9080presets tests/test_psg9080presets.cpp)
     target_include_directories(test_psg9080presets PRIVATE src tests)
@@ -147,11 +148,13 @@ if (OPENHANTEK_TESTS)
     add_test(NAME psg9080presets COMMAND test_psg9080presets)
     # Screenshots of the PSG9080 window and the Bode plot with synthetic data (checked in CI, offscreen)
     add_executable(ui_snapshots tests/ui_snapshots.cpp src/apps/psg9080window.cpp src/apps/psg9080window.h
+                   src/power/powerpanel.cpp src/power/powerpanel.h src/power/poweranalysis.cpp
                    src/bode/bodeplot.cpp src/bode/bodeplot.h src/bode/scopepreview.cpp src/bode/scopepreview.h
                    src/bode/sampletap.cpp src/bode/sampletap.h)
     target_include_directories(ui_snapshots PRIVATE src tests)
     target_link_libraries(ui_snapshots psg9080_core ${OPENHANTEK_QT_LIBS})
     set_target_properties(ui_snapshots PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-    add_custom_target(openhantek_tests DEPENDS test_psg9080protocol test_bodeanalysis test_arbwave test_psg9080presets
+    add_custom_target(openhantek_tests DEPENDS test_psg9080protocol test_bodeanalysis test_arbwave test_poweranalysis
+                      test_psg9080presets
                       ui_snapshots)
 endif()

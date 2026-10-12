@@ -18,6 +18,8 @@ class SpectrumDock;
 class VoltageDock;
 class FrontPanelDock;
 class MeasurementBar;
+class PowerPanel;
+class QDockWidget;
 
 namespace Ui {
 class MainWindow;
@@ -45,6 +47,10 @@ class MainWindow : public QMainWindow {
     DsoWidget *dsoWidget;
     FrontPanelDock *frontPanel = nullptr;
     MeasurementBar *measurementBar = nullptr;
+    PowerPanel *powerPanel = nullptr;
+    QDockWidget *powerDock = nullptr;
+    void setupPowerAnalysis();
+    void feedPowerPanel(const std::shared_ptr<PPresult> &data);
     void applyGridContrast(int level);
     void setupCursorMenu();
     void positionCursorOnSignal();

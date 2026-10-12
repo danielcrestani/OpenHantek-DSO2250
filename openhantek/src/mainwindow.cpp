@@ -4,6 +4,7 @@
 
 #include "FrontPanelDock.h"
 #include "measurementbar.h"
+#include "power/powerpanel.h"
 #include "HorizontalDock.h"
 #include "SpectrumDock.h"
 #include "TriggerDock.h"
@@ -37,6 +38,7 @@
 #include <QGuiApplication>
 #include <QStandardPaths>
 #include <QDateTime>
+#include <QDockWidget>
 
 #include <algorithm>
 #include <cmath>
@@ -139,6 +141,7 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, QWid
 
     // Menu de medições (rodapé por canal)
     menuBar()->insertMenu(ui->menuHelp->menuAction(), measurementBar->menu());
+    setupPowerAnalysis();
 
     // Exibir: fósforo, lupa e painel frontal. As janelas antigas (Horizontal, Trigger, Voltage, Spectrum)
     // ficam escondidas: tudo o que elas faziam está no painel frontal.
@@ -318,6 +321,8 @@ MainWindow::MainWindow(HantekDsoControl *dsoControl, DsoSettings *settings, QWid
             dsoWidget->applyColors();
             if (measurementBar) measurementBar->setChannelColors(mSettings->view.screen.voltage);
             if (frontPanel) frontPanel->setChannelColors(mSettings->view.screen.voltage);
+            if (powerPanel && mSettings->view.screen.voltage.size() >= 2)
+                powerPanel->setChannelColors(mSettings->view.screen.voltage[0], mSettings->view.screen.voltage[1]);
             if (ui->actionDigital_phosphor->isChecked() != mSettings->view.digitalPhosphor)
                 ui->actionDigital_phosphor->setChecked(mSettings->view.digitalPhosphor);
             dsoWidget->updateCursorGrid(mSettings->view.cursorsVisible);
@@ -433,6 +438,48 @@ void MainWindow::showNewData(std::shared_ptr<PPresult> data) {
     dsoWidget->showNew(data);
     if (frontPanel) frontPanel->showData(data);
     if (measurementBar) measurementBar->showData(data);
+    feedPowerPanel(data);
+}
+
+// ---------------------------------------------------------------- análise de potência
+void MainWindow::setupPowerAnalysis() {
+    powerPanel = new PowerPanel;
+    powerDock = new QDockWidget(tr("Análise de potência"), this);
+    powerDock->setObjectName("PowerDock"); // saveState/restoreState
+    powerDock->setWidget(powerPanel);
+    powerDock->setAllowedAreas(Qt::BottomDockWidgetArea | Qt::TopDockWidgetArea);
+    addDockWidget(Qt::BottomDockWidgetArea, powerDock);
+    if (!restoreDockWidget(powerDock)) powerDock->hide(); // first run: closed until chosen in the menu
+    const std::vector<QColor> &c = mSettings->view.screen.voltage;
+    if (c.size() >= 2) powerPanel->setChannelColors(c[0], c[1]);
+
+    QAction *show = powerDock->toggleViewAction();
+    show->setText(tr("Análise de potência (P, Q, S, fator de potência)…"));
+    measurementBar->menu()->addSeparator();
+    measurementBar->menu()->addAction(show);
+    connect(powerDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+        if (visible) feedPowerPanel(lastData);
+    });
+}
+
+void MainWindow::feedPowerPanel(const std::shared_ptr<PPresult> &data) {
+    if (!powerPanel || !powerDock->isVisible() || !data || data->channelCount() < 2) return;
+    const DsoSettingsScope &scope = mSettings->scope;
+    const ChannelID vch = (ChannelID)powerPanel->voltageChannel(), ich = 1 - vch;
+    const DataChannel *dv = data->data(vch), *di = data->data(ich);
+    PowerPanel::Input in;
+    in.bothOn = dv && di && scope.voltage[vch].used && scope.voltage[ich].used && !dv->voltage.sample.empty() &&
+                !di->voltage.sample.empty();
+    in.voltageIsVolts = scope.unit(vch) == UNIT_VOLTS;
+    in.currentIsAmperes = scope.unit(ich) == UNIT_AMPERE;
+    in.voltageName = tr("CH%1").arg(vch + 1);
+    in.currentName = tr("CH%1").arg(ich + 1);
+    if (in.bothOn) {
+        in.v = dv->voltage.sample;
+        in.i = di->voltage.sample;
+        in.dt = dv->voltage.interval;
+    }
+    powerPanel->setData(in);
 }
 
 void MainWindow::applyGridContrast(int level) {
