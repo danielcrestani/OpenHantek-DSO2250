@@ -11,6 +11,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QTimer>
 #include <QTabWidget>
 
 #include <algorithm>
@@ -128,9 +129,14 @@ int main(int argc, char *argv[]) {
                                          0.2 * std::sin(5 * (w * t - lag))));
     }
     power.setData(in);
+    QApplication::processEvents(); // the analysis runs from a timer
+    QTimer wait;
+    wait.setSingleShot(true);
+    wait.start(300);
+    while (wait.isActive()) QApplication::processEvents();
     save(&power, dir + "/potencia.jpg", QSize(1150, 250));
     const power::Result &pr = power.result();
-    fprintf(stderr, "potencia: valido=%d P=%.1f W S=%.1f VA Q=%.1f var FP=%.3f cos=%.3f phi=%.1f THDi=%.1f %%\n",
-            pr.valid, pr.p, pr.s, pr.q, pr.pf, pr.dpf, pr.phi1, pr.thdI);
+    fprintf(stderr, "potencia: valido=%d P=%.1f W S=%.1f VA Q1=%.1f var N=%.1f FP=%.3f cos=%.3f phi=%.1f THDi=%.1f %%\n",
+            pr.valid, pr.p, pr.s, pr.q1, pr.n, pr.pf, pr.dpf, pr.phi1, pr.thdI);
     return 0;
 }

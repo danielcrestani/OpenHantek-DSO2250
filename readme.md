@@ -39,7 +39,8 @@ parecida com a de um osciloscópio de bancada.
 - Marcação na tela da fundamental (F) e dos harmônicos que se destacam do ruído, com lista em dBc e THD.
 
 **Três programas no mesmo projeto**
-- **OpenHantek** — osciloscópio e FFT do DSO-2250.
+- **OpenHantek** — osciloscópio e FFT do DSO-2250, com análise de potência (P, Q1, S, fator de potência,
+  cos φ1, THD de tensão e corrente, harmônicos e energia) com sonda diferencial e garra de corrente.
 - **PSG9080** — controle completo do gerador de funções Joy-IT / JunTek PSG9080 pela USB, em abas: os dois
   canais (forma de onda, frequência de µHz a 80 MHz, amplitude, offset, duty, fase, saída) com presets;
   modulação (AM, FM, PM, ASK, FSK, PSK, pulso, burst); varredura e VCO do aparelho; frequencímetro e contador da

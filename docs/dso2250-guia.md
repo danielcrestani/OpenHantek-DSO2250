@@ -126,6 +126,34 @@ pequeno erro no ajuste de posição, diferente em cada V/div — o traço fica a
 Refaça de tempos em tempos ou se o aparelho estiver bem mais quente/frio. **Apagar calibração de zero** volta
 a usar só a calibração de fábrica.
 
+## 12b. Análise de potência (Medições → Análise de potência)
+
+Painel embaixo da tela com as grandezas de uma carga na rede, calculadas a cada aquisição:
+
+| Grandeza | O que é |
+|---|---|
+| Tensão e corrente RMS | valor eficaz verdadeiro (inclui harmônicos e DC); pico e fator de crista |
+| Frequência | da tensão, em ciclos inteiros |
+| P (W) | potência ativa: média de v·i |
+| S (VA) | aparente: Vrms·Irms; “harmônicos” = parte de S fora da fundamental |
+| Q1 (var) | reativa da fundamental, com sinal (+ indutivo, − capacitivo): é o que um banco de capacitores corrige. “N total” aparece quando os harmônicos somam reativo além do Q1 |
+| Fator de potência | P/S (verdadeiro), com indutivo/capacitivo |
+| cos φ1 e φ1 | fator de deslocamento e ângulo entre as fundamentais (corrente atrasada = indutivo) |
+| THD | distorção harmônica total da tensão e da corrente (% da fundamental), com as barras até a 25ª |
+| Energia | Wh acumulados enquanto o painel está aberto e adquirindo (**Zerar energia** recomeça) |
+
+**Ligação:** escolha o canal da **tensão** (o outro é a **corrente**). O canal de corrente precisa estar com a
+garra selecionada no painel (CC65/CC650), senão o painel avisa. A tensão da rede **só com sonda diferencial**
+(x20…x1000): o DSO-2250 não é isolado e o terra das ponteiras é o terra do PC.
+
+**Dicas:**
+- Base de tempo com **2 a 10 ciclos** na tela (60 Hz: 5 ms/div mostra 3 ciclos); o cálculo usa só ciclos
+  inteiros, então não precisa “acertar” a tela.
+- **Atraso da garra:** garras de corrente atrasam um pouco o sinal. Com uma carga resistiva (lâmpada
+  incandescente, chuveiro, resistor), ajuste o atraso até φ1 ficar em 0,0°; o valor fica salvo.
+- **Inverter corrente** se P der negativo (seta da garra ao contrário).
+- Com acoplamento **DC** nos dois canais (para não distorcer a fase em 60 Hz).
+
 ## 13. Programa PSG9080 (gerador de funções)
 
 **PSG9080** (menu de aplicativos, ou `./openhantek/PSG9080`) controla o gerador Joy-IT / JunTek PSG9080 pela

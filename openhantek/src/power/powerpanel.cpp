@@ -12,6 +12,7 @@
 #include <QPainter>
 #include <QPushButton>
 #include <QSettings>
+#include <QTimer>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -25,6 +26,7 @@ enum CellIndex { VRMS, IRMS, FREQ, P, S, Q, PF, DPF, PHI, THDV, THDI, ENERGY };
 /// "127,3 V", "4,52 kW", "12,0 mA" with a decimal comma
 QString si(double value, const QString &unit, int digits = 4) {
     if (!std::isfinite(value)) return QString::fromUtf8("—");
+    if (value == 0) return QString("0 ") + unit;
     const struct {
         double scale;
         const char *prefix;
@@ -164,7 +166,7 @@ PowerPanel::PowerPanel(QWidget *parent) : QWidget(parent) {
     big.setPointSizeF(15);
     big.setBold(true);
     const char *captions[12] = {"Tensão (RMS)",     "Corrente (RMS)",   "Frequência",
-                                "Potência ativa P", "Aparente S",       "Reativa Q",
+                                "Potência ativa P", "Aparente S",       "Reativa Q1",
                                 "Fator de potência", "cos φ1 (deslocamento)", "Ângulo φ1",
                                 "THD tensão",       "THD corrente",     "Energia"};
     for (int k = 0; k < 12; ++k) {
@@ -201,12 +203,19 @@ PowerPanel::PowerPanel(QWidget *parent) : QWidget(parent) {
     layout->addWidget(screen, 3);
     layout->addWidget(bars, 2);
 
-    connect(voltageBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int) {
+    timer = new QTimer(this);
+    timer->setSingleShot(true);
+    connect(timer, &QTimer::timeout, this, [this]() { analyzePending(true); });
+    // a new connection setting changes what the energy means: start it again, and show the new result now
+    // (also with the acquisition stopped, e.g. to adjust the clamp delay on a frozen screen)
+    auto settingChanged = [this]() {
         saveSettings();
         resetEnergy();
-    });
-    connect(delayBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [this]() { saveSettings(); });
-    connect(invertBox, &QCheckBox::toggled, this, [this]() { saveSettings(); });
+        if (hasPending || source) analyzePending(false);
+    };
+    connect(voltageBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, settingChanged);
+    connect(delayBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, settingChanged);
+    connect(invertBox, &QCheckBox::toggled, this, settingChanged);
     connect(harmonicsBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int) {
         saveSettings();
         showHarmonics();
@@ -245,28 +254,56 @@ void PowerPanel::resetEnergy() {
     cells[ENERGY].note->setText(duration(0));
 }
 
+void PowerPanel::setSource(std::function<bool(Input &)> fn) { source = std::move(fn); }
+
 void PowerPanel::setData(const Input &in) {
-    if (throttle.isValid() && throttle.elapsed() < 200) return;
+    pending = in;
+    hasPending = true;
+    notifyData();
+}
+
+void PowerPanel::notifyData() {
+    if (timer->isActive()) return; // the newest data is analyzed when the timer fires
+    const qint64 since = throttle.isValid() ? throttle.elapsed() : intervalMs;
+    timer->start((int)std::max<qint64>(0, intervalMs - since));
+}
+
+void PowerPanel::analyzePending(bool accumulate) {
+    if (source) { // the newest acquisition, copied once per analysis
+        Input in;
+        if (source(in)) {
+            pending = std::move(in);
+            hasPending = true;
+        }
+    }
+    if (!hasPending) return;
     throttle.restart();
     power::Options o;
     o.currentDelay = delayBox->value() * 1e-6;
     o.invertCurrent = invertBox->isChecked();
-    const power::Result r = in.bothOn ? power::analyze(in.v, in.i, in.dt, o) : power::Result();
-    // energy: average power times the wall-clock time since the last valid analysis (gaps over 5 s are not counted)
-    if (r.valid) {
-        if (energyClock.isValid()) {
-            const double seconds = energyClock.elapsed() / 1000.0;
-            if (seconds < 5) {
-                energy += r.p * seconds / 3600.0;
-                measured += seconds;
+    QElapsedTimer cost;
+    cost.start();
+    const power::Result r = pending.bothOn ? power::analyze(pending.v, pending.i, pending.dt, o) : power::Result();
+    // long records take longer: keep the GUI responsive by analyzing less often
+    intervalMs = std::max(200, (int)(3 * cost.elapsed()));
+    // energy: average power times the wall-clock time since the last valid analysis (gaps over 5 s, such as a
+    // stopped acquisition, are not counted)
+    if (accumulate) {
+        if (r.valid) {
+            if (energyClock.isValid()) {
+                const double seconds = energyClock.elapsed() / 1000.0;
+                if (seconds < 5) {
+                    energy += r.p * seconds / 3600.0;
+                    measured += seconds;
+                }
             }
+            energyClock.restart();
+        } else {
+            energyClock.invalidate();
         }
-        energyClock.restart();
-    } else {
-        energyClock.invalidate();
     }
     last = r;
-    display(r, in);
+    display(r, pending);
 }
 
 void PowerPanel::display(const power::Result &r, const Input &in) {
@@ -301,14 +338,31 @@ void PowerPanel::display(const power::Result &r, const Input &in) {
     cells[FREQ].note->setText(tr("%1 ciclos").arg(r.cycles));
     cells[P].value->setText(si(r.p, "W"));
     cells[S].value->setText(si(r.s, "VA"));
-    cells[Q].value->setText(si(r.q, "var"));
-    cells[Q].note->setText(r.d > 0.05 * r.s ? tr("distorção %1").arg(si(r.d, "VA", 3)) : QString());
+    cells[S].note->setText(r.sn > 0 ? tr("harmônicos %1").arg(si(r.sn, "VA", 3)) : QString());
     cells[PF].value->setText(fixed(r.pf, 3));
-    const QString kind = std::fabs(r.phi1) < 0.5 ? tr("resistivo") : (r.phi1 > 0 ? tr("indutivo") : tr("capacitivo"));
-    cells[PF].note->setText(kind);
-    cells[DPF].value->setText(fixed(r.dpf, 3));
-    cells[PHI].value->setText(fixed(r.phi1, 1) + QString::fromUtf8("°"));
-    cells[PHI].note->setText(r.phi1 > 0.5 ? tr("corrente atrasada") : (r.phi1 < -0.5 ? tr("corrente adiantada") : QString()));
+    if (r.phaseValid) {
+        // Q1: the reactive power of the fundamental, what a capacitor bank compensates (signed);
+        // N also counts the harmonics and is shown when it is clearly larger
+        cells[Q].value->setText(si(r.q1, "var"));
+        cells[Q].note->setText(r.n > 1.05 * std::fabs(r.q1) + 0.01 * r.s ? tr("N total %1").arg(si(r.n, "var", 3))
+                                                                          : QString());
+        const QString kind =
+            std::fabs(r.phi1) < 0.5 ? tr("resistivo") : (r.phi1 > 0 ? tr("indutivo") : tr("capacitivo"));
+        cells[PF].note->setText(kind);
+        cells[DPF].value->setText(fixed(r.dpf, 3));
+        cells[PHI].value->setText(fixed(r.phi1, 1) + QString::fromUtf8("°"));
+        cells[PHI].note->setText(r.phi1 > 0.5 ? tr("corrente atrasada")
+                                              : (r.phi1 < -0.5 ? tr("corrente adiantada") : QString()));
+    } else {
+        cells[Q].value->setText(si(r.n, "var"));
+        cells[Q].note->setText(tr("N (sem fase)"));
+        cells[PF].note->clear();
+        for (int c : {DPF, PHI}) {
+            cells[c].value->setText(QString::fromUtf8("—"));
+            cells[c].note->clear();
+        }
+        warnings << tr("Sem a fundamental da tensão ou da corrente: confira a ponteira e a garra (fase não calculada).");
+    }
     cells[THDV].value->setText(fixed(r.thdV, 1) + " %");
     cells[THDI].value->setText(fixed(r.thdI, 1) + " %");
     cells[ENERGY].value->setText(si(energy, "Wh"));

@@ -13,7 +13,7 @@
 /// Definitions (IEEE 1459):
 ///   P  = mean(v·i)                       active power (W)
 ///   S  = Vrms·Irms                       apparent power (VA)
-///   N  = ±√(S² − P²)                     non-active power (var), with the sign of Q1
+///   N  = √(S² − P²)                      non-active power (var): reactive + harmonics
 ///   PF = P / S                           power factor (true / total)
 ///   φ1 = angle(V1) − angle(I1)           > 0: current lags (inductive), < 0: leads (capacitive)
 ///   P1 = V1·I1·cos φ1, Q1 = V1·I1·sin φ1 fundamental active / reactive power
@@ -48,14 +48,15 @@ struct Result {
 
     double p = 0;  ///< W
     double s = 0;  ///< VA
-    double q = 0;  ///< var: non-active power N with the sign of Q1
+    double n = 0;  ///< var: non-active power N (always >= 0; includes harmonics)
     double pf = 0; ///< P / S (negative when power flows from the load to the source)
+    bool phaseValid = false; ///< both fundamentals present: phi1, DPF, P1, Q1 are meaningful
 
     double v1 = 0, i1 = 0; ///< fundamental RMS
     double phi1 = 0;       ///< degrees, > 0 inductive
     double dpf = 0;        ///< cos φ1
-    double p1 = 0, q1 = 0, s1 = 0;
-    double d = 0; ///< distortion power √(S² − P1² − Q1²) (VA), ~ harmonics
+    double p1 = 0, q1 = 0, s1 = 0; ///< q1 > 0 inductive: what a capacitor bank compensates
+    double sn = 0; ///< non-fundamental apparent power √(S² − S1²) (VA): harmonics and DC; 0 below 2 % of S
 
     double thdV = 0, thdI = 0; ///< % of the fundamental
     std::vector<Harmonic> harmonics; ///< n = 1..maxHarmonic (those below Nyquist)

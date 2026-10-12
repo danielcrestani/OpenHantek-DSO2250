@@ -64,16 +64,18 @@ static void inductiveAndCapacitive() {
     Result r = analyze(v, i, 1 / 50e3);
     CHECK(r.valid);
     CHECK_NEAR(r.p, 127 * 5 * std::cos(kPi / 6), 0.6);
-    CHECK_NEAR(r.q, 127 * 5 * 0.5, 0.6); // positive: inductive
+    CHECK_NEAR(r.q1, 127 * 5 * 0.5, 0.6); // positive: inductive
+    CHECK_NEAR(r.n, 127 * 5 * 0.5, 0.6);  // no harmonics: N = |Q1|
+    CHECK(r.phaseValid);
     CHECK_NEAR(r.pf, std::cos(kPi / 6), 0.001);
     CHECK_NEAR(r.phi1, 30, 0.1);
-    CHECK_NEAR(r.q1, r.q, 0.6);
+    CHECK_NEAR(r.sn, 0, 1e-9); // pure sine: no distortion reported
 
     s.lagDeg = -45; // current leads: capacitive
     make(s, v, i);
     r = analyze(v, i, 1 / 50e3);
     CHECK_NEAR(r.phi1, -45, 0.1);
-    CHECK(r.q < 0);
+    CHECK(r.q1 < 0);
     CHECK_NEAR(r.dpf, std::cos(kPi / 4), 0.002);
 }
 
@@ -91,7 +93,9 @@ static void distortedCurrent() {
     CHECK_NEAR(r.irms, 5 * std::sqrt(1.25), 0.01);
     CHECK_NEAR(r.pf, 1 / std::sqrt(1.25), 0.002); // PF = DPF x distortion factor
     CHECK_NEAR(r.p, 635, 0.7);                    // only the fundamental carries power (pure voltage)
-    CHECK_NEAR(r.d, 127 * 5 * 0.5, 1.0);          // distortion power V·I3
+    CHECK_NEAR(r.sn, 127 * 5 * 0.5, 1.0);         // non-fundamental apparent power V·I3
+    CHECK_NEAR(r.q1, 0, 0.5);                     // no reactive power to compensate with capacitors...
+    CHECK_NEAR(r.n, 127 * 5 * 0.5, 1.0);          // ...although N (harmonics) is large
     CHECK(r.harmonics.size() >= 3);
     CHECK_NEAR(r.harmonics[2].i, 2.5, 0.01);
 }
@@ -156,8 +160,73 @@ static void edgeCases() {
     CHECK_EQ((int)r.harmonics.size(), 40);
 }
 
+static double gaussian(unsigned &seed) {
+    auto u = [&]() {
+        seed = seed * 1103515245u + 12345u;
+        return (((seed >> 8) & 0xffff) + 0.5) / 65536.0;
+    };
+    return std::sqrt(-2 * std::log(u())) * std::cos(2 * kPi * u());
+}
+
+static void robustness() {
+    // Gaussian noise of 10 % of the RMS on both signals, at 200 kS/s and 1 MS/s (5 cycles of 60 Hz)
+    for (double fs : {200e3, 1e6}) {
+        Signal s;
+        s.fs = fs;
+        s.n = (size_t)(fs * 5.3 / 60);
+        s.lagDeg = 30;
+        std::vector<double> v, i;
+        make(s, v, i);
+        unsigned seed = 99;
+        for (double &x : v) x += 0.1 * 127 * gaussian(seed);
+        for (double &x : i) x += 0.1 * 5 * gaussian(seed);
+        const Result r = analyze(v, i, 1 / fs);
+        CHECK(r.valid);
+        CHECK_NEAR(r.frequency, 60, 0.3);
+        CHECK_EQ(r.cycles, 4); // 5,3 cycles from the voltage peak: 4 whole cycles between rising crossings
+        CHECK_NEAR(r.phi1, 30, 1.0);
+        CHECK_NEAR(r.p, 127 * 5 * std::cos(kPi / 6), 0.01 * 635);
+    }
+    // 40 samples per cycle, 5 cycles: the window must not be a sample too long
+    for (int phase = 0; phase < 8; ++phase) {
+        std::vector<double> v, i;
+        const double fs = 2400;
+        for (int k = 0; k < 215; ++k) {
+            const double t = k / fs + phase * 0.0021, w = 2 * kPi * 60;
+            v.push_back(127 * std::sqrt(2.0) * std::cos(w * t));
+            i.push_back(5 * std::sqrt(2.0) * std::cos(w * t - kPi / 6));
+        }
+        const Result r = analyze(v, i, 1 / fs);
+        CHECK(r.valid);
+        CHECK_NEAR(r.phi1, 30, 0.1);
+        CHECK_NEAR(r.p, 549.9, 0.002 * 635);
+        CHECK_NEAR(r.thdI, 0, 0.6);
+        CHECK_NEAR(r.sn, 0, 1e-9);
+    }
+    // a voltage spike 10x the peak does not hide the mains cycles
+    {
+        std::vector<double> v, i;
+        make(Signal{}, v, i);
+        v[3000] = 1800;
+        const Result r = analyze(v, i, 1 / 50e3);
+        CHECK(r.valid);
+        CHECK_NEAR(r.frequency, 60, 0.05);
+    }
+    // no current (clamp missing): phase and DPF are not shown as "resistive, 1.000"
+    {
+        std::vector<double> v, i;
+        make(Signal{}, v, i);
+        for (double &x : i) x = 0;
+        const Result r = analyze(v, i, 1 / 50e3);
+        CHECK(r.valid);
+        CHECK(!r.phaseValid);
+        CHECK_NEAR(r.p, 0, 1e-9);
+    }
+}
+
 int main() {
     resistive();
+    robustness();
     inductiveAndCapacitive();
     distortedCurrent();
     probeDelayAndDirection();

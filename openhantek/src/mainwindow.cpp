@@ -460,28 +460,31 @@ void MainWindow::setupPowerAnalysis() {
     connect(powerDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
         if (visible) feedPowerPanel(lastData);
     });
+    powerPanel->setSource([this](PowerPanel::Input &in) {
+        const std::shared_ptr<PPresult> data = lastData;
+        if (!data || data->channelCount() < 2) return false;
+        const DsoSettingsScope &scope = mSettings->scope;
+        const ChannelID vch = (ChannelID)powerPanel->voltageChannel(), ich = 1 - vch;
+        const DataChannel *dv = data->data(vch), *di = data->data(ich);
+        in.bothOn = dv && di && scope.voltage[vch].used && scope.voltage[ich].used && !dv->voltage.sample.empty() &&
+                    !di->voltage.sample.empty();
+        in.voltageIsVolts = scope.unit(vch) == UNIT_VOLTS;
+        in.currentIsAmperes = scope.unit(ich) == UNIT_AMPERE;
+        in.voltageName = tr("CH%1").arg(vch + 1);
+        in.currentName = tr("CH%1").arg(ich + 1);
+        if (in.bothOn) {
+            in.v = dv->voltage.sample;
+            in.i = di->voltage.sample;
+            in.dt = dv->voltage.interval;
+        }
+        return true;
+    });
 }
 
 void MainWindow::feedPowerPanel(const std::shared_ptr<PPresult> &data) {
-    if (!powerPanel || !powerDock->isVisible() || !data || data->channelCount() < 2) return;
-    const DsoSettingsScope &scope = mSettings->scope;
-    const ChannelID vch = (ChannelID)powerPanel->voltageChannel(), ich = 1 - vch;
-    const DataChannel *dv = data->data(vch), *di = data->data(ich);
-    PowerPanel::Input in;
-    in.bothOn = dv && di && scope.voltage[vch].used && scope.voltage[ich].used && !dv->voltage.sample.empty() &&
-                !di->voltage.sample.empty();
-    in.voltageIsVolts = scope.unit(vch) == UNIT_VOLTS;
-    in.currentIsAmperes = scope.unit(ich) == UNIT_AMPERE;
-    in.voltageName = tr("CH%1").arg(vch + 1);
-    in.currentName = tr("CH%1").arg(ich + 1);
-    if (in.bothOn) {
-        in.v = dv->voltage.sample;
-        in.i = di->voltage.sample;
-        in.dt = dv->voltage.interval;
-    }
-    powerPanel->setData(in);
+    // only a notice: the panel takes the newest acquisition (lastData) when its analysis runs
+    if (powerPanel && powerDock->isVisible() && data) powerPanel->notifyData();
 }
-
 void MainWindow::applyGridContrast(int level) {
     static const int gridAlpha[] = {0x3f, 0xa0, 0xff};
     static const int axesAlpha[] = {0x7f, 0xc0, 0xff};

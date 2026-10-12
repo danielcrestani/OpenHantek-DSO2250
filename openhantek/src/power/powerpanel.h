@@ -6,6 +6,7 @@
 #include <QElapsedTimer>
 #include <QWidget>
 
+#include <functional>
 #include <vector>
 
 #include "poweranalysis.h"
@@ -14,6 +15,7 @@ class QCheckBox;
 class QComboBox;
 class QDoubleSpinBox;
 class QLabel;
+class QTimer;
 
 /// \brief Bars of the harmonics (% of the fundamental) of the voltage or the current.
 class HarmonicBars : public QWidget {
@@ -48,14 +50,21 @@ class PowerPanel : public QWidget {
         bool voltageIsVolts = true, currentIsAmperes = true;
         QString voltageName = "CH1", currentName = "CH2";
     };
-    /// New acquisition (analysis at most ~5 times per second).
+    /// New acquisition. The analysis runs at most ~5 times per second (less for very long records); the last
+    /// acquisition is always analyzed, also after STOP or SINGLE.
     void setData(const Input &input);
+    /// Where the newest acquisition comes from: called when an analysis runs (false = no data).
+    void setSource(std::function<bool(Input &)> source);
+    /// A new acquisition arrived (the samples are fetched from the source when the analysis runs).
+    void notifyData();
     /// 0 = CH1, 1 = CH2
     int voltageChannel() const;
     void setChannelColors(const QColor &ch1, const QColor &ch2);
     const power::Result &result() const { return last; }
 
   private:
+    /// Analyze `pending`; `accumulate`: add to the energy (not when only a setting changed)
+    void analyzePending(bool accumulate);
     void display(const power::Result &r, const Input &in);
     void showHarmonics();
     void resetEnergy();
@@ -74,6 +83,11 @@ class PowerPanel : public QWidget {
     QColor colors[2] = {QColor("#ff3b3b"), QColor("#f2e600")};
 
     power::Result last;
+    Input pending;
+    bool hasPending = false;
+    std::function<bool(Input &)> source;
+    QTimer *timer;
+    int intervalMs = 200;
     QElapsedTimer throttle, energyClock;
     double energy = 0;  ///< Wh
     double measured = 0; ///< s of measurement in the energy

@@ -17,39 +17,82 @@ double wrapDegrees(double a) {
     return a;
 }
 
-/// Fractional positions of the rising zero crossings of x - mean(x), with hysteresis (15 % of the peak) so noise
-/// and small harmonics near zero do not count as extra crossings.
-std::vector<double> risingCrossings(const std::vector<double> &x) {
+/// Rising crossings of y through zero with hysteresis +-h; fractional positions by linear interpolation.
+std::vector<double> crossingsOf(const std::vector<double> &y, double h) {
     std::vector<double> out;
-    const size_t n = x.size();
-    if (n < 4) return out;
-    double mean = 0;
-    for (double s : x) mean += s;
-    mean /= (double)n;
-    double peak = 0;
-    for (double s : x) peak = std::max(peak, std::fabs(s - mean));
-    if (!(peak > 0)) return out;
-    const double h = 0.15 * peak;
     int state = 0; // -1 below -h, +1 above +h
     size_t lastLow = 0;
-    for (size_t k = 0; k < n; ++k) {
-        const double a = x[k] - mean;
-        if (a < -h) {
+    for (size_t k = 0; k < y.size(); ++k) {
+        if (y[k] < -h) {
             state = -1;
             lastLow = k;
-        } else if (a > h) {
+        } else if (y[k] > h) {
             if (state == -1) {
-                // the crossing is between the last low sample and here: last sign change before k
-                size_t j = k;
-                while (j > lastLow && x[j - 1] - mean >= 0) --j;
+                size_t j = k; // last sign change between the low sample and here
+                while (j > lastLow && y[j - 1] >= 0) --j;
                 if (j > 0) {
-                    const double y0 = x[j - 1] - mean, y1 = x[j] - mean;
+                    const double y0 = y[j - 1], y1 = y[j];
                     out.push_back((double)(j - 1) + (y1 != y0 ? -y0 / (y1 - y0) : 0.0));
                 }
             }
             state = 1;
         }
     }
+    return out;
+}
+
+double median(std::vector<double> v) {
+    if (v.empty()) return 0;
+    std::nth_element(v.begin(), v.begin() + (long)(v.size() / 2), v.end());
+    return v[v.size() / 2];
+}
+
+/// Rising zero crossings of the AC part of x, robust to noise and spikes:
+/// 1. a rough period from crossings with a wide hysteresis (50 % of the sine peak sqrt(2)·RMS, not the
+///    maximum, so a spike does not hide the signal);
+/// 2. the signal smoothed by a centered moving average of 1/50 of that period (no phase shift);
+/// 3. crossings of the smoothed signal, dropping any that comes less than half a period after the previous one.
+std::vector<double> risingCrossings(const std::vector<double> &x) {
+    const size_t n = x.size();
+    if (n < 4) return {};
+    double mean = 0;
+    for (double s : x) mean += s;
+    mean /= (double)n;
+    std::vector<double> ac(n);
+    double sum2 = 0;
+    for (size_t k = 0; k < n; ++k) {
+        ac[k] = x[k] - mean;
+        sum2 += ac[k] * ac[k];
+    }
+    const double peak = std::sqrt(2.0 * sum2 / (double)n);
+    if (!(peak > 0)) return {};
+
+    const std::vector<double> rough = crossingsOf(ac, 0.5 * peak);
+    if (rough.size() < 2) return {};
+    std::vector<double> intervals;
+    for (size_t k = 1; k < rough.size(); ++k) intervals.push_back(rough[k] - rough[k - 1]);
+    const double period = median(intervals);
+
+    const size_t half = (size_t)std::max(0.0, std::floor(period / 100.0)); // window 2·half+1 ~ period/50
+    std::vector<double> smooth(n);
+    if (half == 0) {
+        smooth = ac;
+    } else {
+        double acc = 0;
+        size_t lo = 0, hi = 0; // window [lo, hi)
+        for (size_t k = 0; k < n; ++k) {
+            const size_t wantLo = k > half ? k - half : 0, wantHi = std::min(n, k + half + 1);
+            while (hi < wantHi) acc += ac[hi++];
+            while (lo < wantLo) acc -= ac[lo++];
+            smooth[k] = acc / (double)(hi - lo);
+        }
+    }
+    double s2 = 0;
+    for (double v : smooth) s2 += v * v;
+    const std::vector<double> fine = crossingsOf(smooth, 0.3 * std::sqrt(2.0 * s2 / (double)n));
+    std::vector<double> out;
+    for (double c : fine)
+        if (out.empty() || c - out.back() > 0.5 * period) out.push_back(c);
     return out;
 }
 
@@ -110,7 +153,9 @@ Result analyze(const std::vector<double> &vIn, const std::vector<double> &iIn, d
     r.cycles = (int)inside.size() - 1;
     r.frequency = r.cycles / ((last - first) * dt);
 
-    const size_t a = (size_t)std::ceil(first), b = (size_t)std::ceil(last); // [a, b): whole cycles
+    // [a, b): whole cycles; the length is rounded, not the end, so it is never a sample too long
+    const size_t a = (size_t)std::ceil(first);
+    const size_t b = std::min(n, a + (size_t)std::llround(last - first));
     const size_t count = b - a;
     if (count < 8) {
         r.error = "poucas amostras por ciclo";
@@ -148,9 +193,15 @@ Result analyze(const std::vector<double> &vIn, const std::vector<double> &iIn, d
         const std::complex<double> rot = std::polar(1.0, -w);
         std::complex<double> ph(1.0, 0.0), xv = 0, xi = 0;
         size_t used = 0;
-        for (size_t k = a; k < b; k += stride) {
-            xv += v[k] * ph;
-            xi += cur[k] * ph;
+        for (size_t k = a; k + stride <= b; k += stride) {
+            // average of the block (anti-alias for the decimation; plain sample when stride = 1)
+            double bv = 0, bi = 0;
+            for (size_t j = k; j < k + stride; ++j) {
+                bv += v[j];
+                bi += cur[j];
+            }
+            xv += (bv / (double)stride) * ph;
+            xi += (bi / (double)stride) * ph;
             ph *= rot;
             if ((++used & 1023) == 0) ph /= std::abs(ph); // keep |ph| = 1 over long sums
         }
@@ -174,10 +225,21 @@ Result analyze(const std::vector<double> &vIn, const std::vector<double> &iIn, d
     r.q1 = r.s1 * std::sin(phi);
     r.dpf = std::cos(phi);
 
-    const double nonActive = std::sqrt(std::max(0.0, r.s * r.s - r.p * r.p));
-    r.q = r.q1 < 0 ? -nonActive : nonActive;
+    // the phase only means something when both fundamentals are clearly there (not noise or a missing probe)
+    const double vac = std::sqrt(std::max(0.0, r.vrms * r.vrms - r.vdc * r.vdc));
+    const double iac = std::sqrt(std::max(0.0, r.irms * r.irms - r.idc * r.idc));
+    r.phaseValid = r.v1 > 0.2 * vac && r.i1 > 0.2 * iac && r.v1 > 0 && r.i1 > 0;
+    if (!r.phaseValid) {
+        r.phi1 = 0;
+        r.dpf = 0;
+        r.p1 = r.q1 = 0;
+    }
+    r.n = std::sqrt(std::max(0.0, r.s * r.s - r.p * r.p));
     r.pf = r.s > 0 ? r.p / r.s : 0.0;
-    r.d = std::sqrt(std::max(0.0, r.s * r.s - r.p1 * r.p1 - r.q1 * r.q1));
+    // S_N: apparent power that is not at the fundamental (harmonics, DC); small differences between the time
+    // domain S and the DFT S1 are not reported as distortion
+    const double sn = std::sqrt(std::max(0.0, r.s * r.s - r.s1 * r.s1));
+    r.sn = sn > 0.02 * r.s ? sn : 0.0;
 
     double hv = 0, hi = 0;
     for (size_t k = 1; k < r.harmonics.size(); ++k) {
