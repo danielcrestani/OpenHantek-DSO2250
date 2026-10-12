@@ -182,6 +182,7 @@ PowerPanel::PowerPanel(QWidget *parent) : QWidget(parent) {
         box->setSpacing(0);
         box->addWidget(c.caption);
         QHBoxLayout *line = new QHBoxLayout;
+        line->setSpacing(8);
         line->addWidget(c.value);
         line->addWidget(c.note, 1, Qt::AlignLeft | Qt::AlignBottom);
         box->addLayout(line);
@@ -327,7 +328,7 @@ void PowerPanel::display(const power::Result &r, const Input &in) {
             warnings << tr("Sem medição: %1. Ajuste a base de tempo para ver de 2 a 10 ciclos da rede.")
                             .arg(QString::fromStdString(r.error.empty() ? "sem sinal" : r.error));
         message->setText(warnings.join("\n"));
-        bars->setData({}, 0, colors[ich], harmonicsBox->currentText());
+        bars->setData({}, 0, colors[ich], QString());
         return;
     }
     cells[VRMS].value->setText(si(r.vrms, "V"));
@@ -383,5 +384,5 @@ void PowerPanel::showHarmonics() {
     for (const power::Harmonic &x : last.harmonics) h.push_back(voltage ? x.v : x.i);
     const int ch = voltage ? voltageChannel() : 1 - voltageChannel();
     bars->setData(last.valid ? h : std::vector<double>(), voltage ? last.thdV : last.thdI, colors[ch],
-                  harmonicsBox->currentText() + tr(" (% da fundamental)"));
+                  voltage ? tr("Tensão — % da fundamental") : tr("Corrente — % da fundamental"));
 }
